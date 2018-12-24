@@ -1,4 +1,4 @@
-# Additional Features in this V2
+# Additional Features in this V1.1
 
 1. Added for Same Convolution (with Zero (n-bit input) and Alternate Padding (0101... for 1-bit input))
 2. Added Same and Valid Odd Maxpool
