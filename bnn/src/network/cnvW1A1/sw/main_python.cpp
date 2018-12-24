@@ -48,6 +48,7 @@
 #include <chrono>
 #include "foldedmv-offload.h"
 #include <algorithm>
+#include "config.h"
 
 using namespace std;
 using namespace tiny_cnn;
@@ -56,14 +57,14 @@ using namespace tiny_cnn::activation;
 void makeNetwork(network<mse, adagrad> & nn) {
   nn
 #ifdef OFFLOAD
-    << chaninterleave_layer<identity>(3, 32 * 32, false)
-    << offloaded_layer(3 * 32 * 32, 10, &FixedFoldedMVOffload<8, 1, ap_int<16>>, 0xdeadbeef, 0)
+  << chaninterleave_layer<identity>(IMG_CH, IMG_DIM * IMG_DIM, false)
+  << offloaded_layer(IMG_CH * IMG_DIM * IMG_DIM, no_cl, &FixedFoldedMVOffload<8, 1, ap_int<16>>, 0xdeadbeef, 0)
 #endif
   ;
 }
 
 extern "C" void load_parameters(const char* path) {
-#include "config.h"
+
   FoldedMVInit("cnvW1A1");
   network<mse, adagrad> nn;
   makeNetwork(nn);
@@ -79,7 +80,7 @@ extern "C" void load_parameters(const char* path) {
   FoldedMVLoadLayerMem(path, 8, L8_PE, L8_WMEM, L8_TMEM, 0);
 }
 
-extern "C" int inference(const char* path, int results[64], int number_class, float* usecPerImage) {
+extern "C" int inference(const char* path, int results[LL_MH], int number_class, float* usecPerImage) {
   std::vector<label_t> test_labels;
   std::vector<vec_t> test_images;
   std::vector<int> class_result;
@@ -149,10 +150,10 @@ extern "C" int main(int argc, char** argv) {
   }
   float execution_time = 0;
   int class_inference = 0;
-  int scores[64];
+  int scores[LL_MH];
 
   load_parameters(argv[1]);
-  class_inference = inference(argv[2], scores, atol(argv[3]), &execution_time);
+  class_inference = inference(argv[2], scores, no_cl, &execution_time);
 
   cout << "Detected class " << class_inference << endl;
   cout << "in " << execution_time << " microseconds" << endl;

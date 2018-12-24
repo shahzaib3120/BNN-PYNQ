@@ -378,6 +378,7 @@ def train(train_fn,val_fn,
         print("  best validation error rate:    "+str(best_val_err)+"%")
         print("  test loss:                     "+str(test_loss))
         print("  test error rate:               "+str(test_err)+"%") 
+        print("  best accuracy:                 "+str(100 - best_val_err)+"%")
         
         # decay the LR
         LR *= LR_decay

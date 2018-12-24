@@ -1,0 +1,1 @@
+to get the labels for first 20 cifar100 images uncomment the last lines in the test_cnv.py and run inference with cifar100.

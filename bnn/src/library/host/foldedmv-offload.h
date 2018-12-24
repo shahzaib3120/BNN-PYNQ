@@ -44,7 +44,7 @@
 #include <iostream>
 #include "tiny_cnn/tiny_cnn.h"
 #include "ap_int.h"
-
+#include "config.h"
 using namespace std;
 
 typedef unsigned long long ExtMemWord;
@@ -53,13 +53,15 @@ const unsigned int bitsPerExtMemWord = sizeof(ExtMemWord)*8;
 
 #ifndef VIRTUAL
   #define INPUT_BUF_ENTRIES     3840000
-  #define OUTPUT_BUF_ENTRIES    160000
+  #define OUTPUT_BUF_ENTRIES    250000
 #else
   #define INPUT_BUF_ENTRIES		8192
   #define OUTPUT_BUF_ENTRIES	1024
 #endif
 
 #define FOLDEDMV_INPUT_PADCHAR  0
+
+
 
 void FoldedMVOffloadBinarized(const ExtMemWord * in, 
                               ExtMemWord * out,
@@ -107,9 +109,11 @@ unsigned int paddedSize(unsigned int in, unsigned int padTo);
 std::string getBNNRoot();
 
 template<typename LowPrecType>
-void copyFromLowPrecBuffer(void * buf, tiny_cnn::vec_t & out) {
+void copyFromLowPrecBuffer(void * buf, tiny_cnn::vec_t & out)
+{
   LowPrecType * lpbuf = (LowPrecType *) buf;
-  for(unsigned int i = 0; i < out.size(); i++) {
+  for(unsigned int i = 0; i < out.size(); i++)
+  {
     out[i] = (tiny_cnn::float_t) lpbuf[i];
   }
 }
@@ -117,7 +121,8 @@ void copyFromLowPrecBuffer(void * buf, tiny_cnn::vec_t & out) {
 template<unsigned int inWidth, unsigned int SIMDWidth>
 void quantiseAndPack(const tiny_cnn::vec_t & in, ExtMemWord * out, unsigned int inBufSize=INPUT_BUF_ENTRIES) {
   if((in.size() * inWidth) > (inBufSize * bitsPerExtMemWord)) {
-    throw "Not enough space in input buffer";
+    cout << "Not enough space in input buffer"<< endl;
+    exit(1);
   }
   // first, fill the target buffer with padding data
   memset(out, 0, inBufSize * sizeof(ExtMemWord));
@@ -173,7 +178,8 @@ void FixedFoldedMVOffload(const tiny_cnn::vec_t &in, tiny_cnn::vec_t &out, unsig
 
 
 template<unsigned int inWidth, unsigned int outWidth, typename LowPrecType>
-void testPrebuiltCIFAR10(std::vector<tiny_cnn::vec_t> & imgs, std::vector<tiny_cnn::label_t> & labels, const unsigned int numCategories) {
+void testPrebuiltCIFAR10(std::vector<tiny_cnn::vec_t> & imgs, std::vector<tiny_cnn::label_t> & labels, const unsigned int numCategories) 
+{
   const unsigned int count = imgs.size();
   cout << "Packing and interleaving CIFAR-10 inputs..." << endl;
   // number of ExtMemWords per image
@@ -181,16 +187,17 @@ void testPrebuiltCIFAR10(std::vector<tiny_cnn::vec_t> & imgs, std::vector<tiny_c
   // number of ExtMemWords per output
   const unsigned int pso = 16; //paddedSize(numCategories*outWidth, bitsPerExtMemWord) / bitsPerExtMemWord;
   if(INPUT_BUF_ENTRIES < count*psi) {
-    throw "Not enough space in accelBufIn";
+    cout << "Not enough space in accelBufIn"<< endl;
+    exit(1);
   }
   if(OUTPUT_BUF_ENTRIES < count*pso) {
-    throw "Not enough space in accelBufOut";
+    cout << "Not enough space in accelBufOut"<< endl;
+    exit(1);
   }
   // allocate host-side buffers for packed input and outputs
   ExtMemWord * packedImages = new ExtMemWord[(count * psi)];
   ExtMemWord * packedOut = new ExtMemWord[(count * pso)];
-  
-  tiny_cnn::chaninterleave_layer<tiny_cnn::activation::identity> interleaver(3, 32 * 32, false);
+  tiny_cnn::chaninterleave_layer<tiny_cnn::activation::identity> interleaver(IMG_CH, IMG_DIM * IMG_DIM, false);
   // interleave and pack inputs
   for(unsigned int i = 0; i < count; i++) {
     tiny_cnn::vec_t interleaved = interleaver.forward_propagation(imgs[i], 0);
@@ -231,24 +238,27 @@ void testPrebuiltCIFAR10(std::vector<tiny_cnn::vec_t> & imgs, std::vector<tiny_c
 
 
 template<unsigned int inWidth, unsigned int outWidth, typename LowPrecType>
-std::vector<int>  testPrebuiltCIFAR10_from_image(std::vector<tiny_cnn::vec_t> & imgs, const unsigned int numCategories, float &usecPerImage) {
+std::vector<int>  testPrebuiltCIFAR10_from_image(std::vector<tiny_cnn::vec_t> & imgs, const unsigned int numCategories, float &usecPerImage) 
+{
   const unsigned int count = 1;
   cout << "Packing and interleaving CIFAR-10 inputs..." << endl;
   // number of ExtMemWords per image
   const unsigned int psi = paddedSize(imgs[0].size()*inWidth, bitsPerExtMemWord) / bitsPerExtMemWord;
   // number of ExtMemWords per output
-  const unsigned int pso = paddedSize(64*outWidth, bitsPerExtMemWord) / bitsPerExtMemWord;
-  if(INPUT_BUF_ENTRIES < count*psi) {
-    throw "Not enough space in accelBufIn";
+  const unsigned int pso = paddedSize(LL_MH*outWidth, bitsPerExtMemWord) / bitsPerExtMemWord;
+  if(INPUT_BUF_ENTRIES < count*psi)
+  {
+    cout << "Not enough space in accelBufIn"<< endl;
+    exit(1);
   }
   if(OUTPUT_BUF_ENTRIES < count*pso) {
-    throw "Not enough space in accelBufOut";
+    cout << "Not enough space in accelBufOut"<< endl;
+    exit(1);
   }
   // allocate host-side buffers for packed input and outputs
   ExtMemWord * packedImages = new ExtMemWord[(count * psi)];
   ExtMemWord * packedOut = new ExtMemWord[(count * pso)];
-  
-  tiny_cnn::chaninterleave_layer<tiny_cnn::activation::identity> interleaver(3, 32 * 32, false);
+  tiny_cnn::chaninterleave_layer<tiny_cnn::activation::identity> interleaver(IMG_CH, IMG_DIM * IMG_DIM, false);
   // interleave and pack inputs
   for(unsigned int i = 0; i < count; i++) {
     tiny_cnn::vec_t interleaved = interleaver.forward_propagation(imgs[i], 0);
@@ -276,26 +286,32 @@ std::vector<int>  testPrebuiltCIFAR10_from_image(std::vector<tiny_cnn::vec_t> & 
   delete[] packedImages;
   delete[] packedOut;
   return result;
+
 }
 
 template<unsigned int inWidth, unsigned int outWidth, typename LowPrecType>
-std::vector<int> testPrebuiltCIFAR10_multiple_images(std::vector<tiny_cnn::vec_t> & imgs, const unsigned int numCategories, std::vector<int> & detailed_results, float & usecPerImage) {
+std::vector<int> testPrebuiltCIFAR10_multiple_images(std::vector<tiny_cnn::vec_t> & imgs, const unsigned int numCategories, std::vector<int> & detailed_results, float & usecPerImage) 
+{
   const unsigned int count = imgs.size();
   std::vector<int> results;
   cout << "Packing and interleaving CIFAR-10 inputs..." << endl;
   // number of ExtMemWords per image
   const unsigned int psi = paddedSize(imgs[0].size()*inWidth, bitsPerExtMemWord) / bitsPerExtMemWord;
   // number of ExtMemWords per output
-  const unsigned int pso = paddedSize(64*outWidth, bitsPerExtMemWord) / bitsPerExtMemWord;
-  if(INPUT_BUF_ENTRIES < count*psi)
-    throw "Not enough space in accelBufIn";
-  if(OUTPUT_BUF_ENTRIES < count*pso)
-    throw "Not enough space in accelBufOut";
+  const unsigned int pso = paddedSize(LL_MH*outWidth, bitsPerExtMemWord) / bitsPerExtMemWord;
+  if(INPUT_BUF_ENTRIES < count*psi){
+    cout << "Not enough space in accelBufIn"<< endl;
+    exit(1);
+}
+  if(OUTPUT_BUF_ENTRIES < count*pso){
+    cout << "Not enough space in accelBufOut"<< endl;
+    exit(1);
+}
   // allocate host-side buffers for packed input and outputs
   ExtMemWord * packedImages = new ExtMemWord[(count * psi)];
   ExtMemWord * packedOut = new ExtMemWord[(count * pso)];
   
-  tiny_cnn::chaninterleave_layer<tiny_cnn::activation::identity> interleaver(3, 32 * 32, false);
+  tiny_cnn::chaninterleave_layer<tiny_cnn::activation::identity> interleaver(IMG_CH, IMG_DIM * IMG_DIM, false);
   // interleave and pack inputs
   for(unsigned int i = 0; i < count; i++) {
     tiny_cnn::vec_t interleaved = interleaver.forward_propagation(imgs[i], 0);
@@ -310,13 +326,16 @@ std::vector<int> testPrebuiltCIFAR10_multiple_images(std::vector<tiny_cnn::vec_t
   // compare against labels
   tiny_cnn::vec_t outTest(numCategories, 0);
   
-  for(unsigned int i = 0; i < count; i++) {
+  for(unsigned int i = 0; i < count; i++)
+  {
     copyFromLowPrecBuffer<LowPrecType>(&packedOut[i * pso], outTest);
     int maxInd = 0;
     LowPrecType maxVal = 0;
-    for(unsigned int j = 0; j < numCategories; j++) {
-    detailed_results.push_back(outTest[j]);
-      if(outTest[j] > maxVal) {
+    for(unsigned int j = 0; j < numCategories; j++)
+    {
+    	detailed_results.push_back(outTest[j]);
+        if(outTest[j] > maxVal)
+        {
         maxVal = outTest[j];
         maxInd = j;
       }
@@ -411,7 +430,8 @@ void FixedFoldedMVOffload(const tiny_cnn::vec_t &in, tiny_cnn::vec_t &out, unsig
 }
 
 template<unsigned int inWidth, unsigned int outWidth, typename LowPrecType>
-void testPrebuiltCIFAR10(std::vector<tiny_cnn::vec_t> & imgs, std::vector<tiny_cnn::label_t> & labels, const unsigned int numCategories) {
+void testPrebuiltCIFAR10(std::vector<tiny_cnn::vec_t> & imgs, std::vector<tiny_cnn::label_t> & labels, const unsigned int numCategories) 
+{
   const unsigned int count = imgs.size();
   cout << "Packing and interleaving CIFAR-10 inputs..." << endl;
   // # of ExtMemWords per image
@@ -419,16 +439,18 @@ void testPrebuiltCIFAR10(std::vector<tiny_cnn::vec_t> & imgs, std::vector<tiny_c
   // # of ExtMemWords per output
   const unsigned int pso = paddedSize(numCategories * outWidth, bitsPerExtMemWord) / bitsPerExtMemWord;
   if(INPUT_BUF_ENTRIES < count*psi) {
-    throw "Not enough space in accelBufIn";
+    cout << "Not enough space in accelBufIn"<< endl;
+    exit(1);
   }
   if(OUTPUT_BUF_ENTRIES < count*pso) {
-    throw "Not enough space in accelBufOut";
+    cout << "Not enough space in accelBufOut"<< endl;
+    exit(1);
   }
   // allocate host-side buffers for packed input and outputs
   ExtMemWord * packedImages = new ExtMemWord[(count * psi)];
   ExtMemWord * packedOut = new ExtMemWord[(count * pso)];
   
-  tiny_cnn::chaninterleave_layer<tiny_cnn::activation::identity> interleaver(3, 32 * 32, false);
+  tiny_cnn::chaninterleave_layer<tiny_cnn::activation::identity> interleaver(IMG_CH, IMG_DIM * IMG_DIM, false);
   // interleave and pack inputs
   for(unsigned int i = 0; i < count; i++) {
     tiny_cnn::vec_t interleaved = interleaver.forward_propagation(imgs[i], 0);
@@ -476,24 +498,27 @@ void testPrebuiltCIFAR10(std::vector<tiny_cnn::vec_t> & imgs, std::vector<tiny_c
 }
 
 template<unsigned int inWidth, unsigned int outWidth, typename LowPrecType>
-std::vector<int> testPrebuiltCIFAR10_from_image(std::vector<tiny_cnn::vec_t> & imgs, const unsigned int numCategories, float &usecPerImage) {
+std::vector<int> testPrebuiltCIFAR10_from_image(std::vector<tiny_cnn::vec_t> & imgs, const unsigned int numCategories, float &usecPerImage) 
+{
   const unsigned int count = 1;
   cout << "Packing and interleaving CIFAR-10 inputs..." << endl;
   // number of ExtMemWords per image
   const unsigned int psi = paddedSize(imgs[0].size()*inWidth, bitsPerExtMemWord) / bitsPerExtMemWord;
   // number of ExtMemWords per output
-  const unsigned int pso = paddedSize(64*outWidth, bitsPerExtMemWord) / bitsPerExtMemWord;
+  const unsigned int pso = paddedSize(LL_MH*outWidth, bitsPerExtMemWord) / bitsPerExtMemWord;
   if(INPUT_BUF_ENTRIES < count*psi) {
-    throw "Not enough space in accelBufIn";
+    cout << "Not enough space in accelBufIn"<< endl;
+    exit(1);
   }
   if(OUTPUT_BUF_ENTRIES < count*pso) {
-    throw "Not enough space in accelBufOut";
+    cout << "Not enough space in accelBufOut"<< endl;
+    exit(1);
   }
   // allocate host-side buffers for packed input and outputs
   ExtMemWord * packedImages = new ExtMemWord[(count * psi)];
   ExtMemWord * packedOut = new ExtMemWord[(count * pso)];
   
-  tiny_cnn::chaninterleave_layer<tiny_cnn::activation::identity> interleaver(3, 32 * 32, false);
+  tiny_cnn::chaninterleave_layer<tiny_cnn::activation::identity> interleaver(IMG_CH, IMG_DIM * IMG_DIM, false);
   // interleave and pack inputs
   for(unsigned int i = 0; i < count; i++) {
     tiny_cnn::vec_t interleaved = interleaver.forward_propagation(imgs[i], 0);
@@ -532,25 +557,28 @@ std::vector<int> testPrebuiltCIFAR10_from_image(std::vector<tiny_cnn::vec_t> & i
 }
 
 template<unsigned int inWidth, unsigned int outWidth, typename LowPrecType>
-std::vector<int> testPrebuiltCIFAR10_multiple_images(std::vector<tiny_cnn::vec_t> & imgs, const unsigned int numCategories, std::vector<int> & detailed_results, float &usecPerImage) {
+std::vector<int> testPrebuiltCIFAR10_multiple_images(std::vector<tiny_cnn::vec_t> & imgs, const unsigned int numCategories, std::vector<int> & detailed_results, float &usecPerImage) 
+{
   const unsigned int count = imgs.size();
   std::vector<int> results;
   cout << "Packing and interleaving CIFAR-""10 inputs..." << endl;
   // number of ExtMemWords per image
   const unsigned int psi = paddedSize(imgs[0].size()*inWidth, bitsPerExtMemWord) / bitsPerExtMemWord;
   // number of ExtMemWords per output
-  const unsigned int pso = paddedSize(64*outWidth, bitsPerExtMemWord) / bitsPerExtMemWord;
+  const unsigned int pso = paddedSize(LL_MH*outWidth, bitsPerExtMemWord) / bitsPerExtMemWord;
   if(INPUT_BUF_ENTRIES < count*psi) {
-    throw "Not enough space in accelBufIn";
+    cout << "Not enough space in accelBufIn"<< endl;
+    exit(1);
   }
   if(OUTPUT_BUF_ENTRIES < count*pso) {
-    throw "Not enough space in accelBufOut";
+    cout << "Not enough space in accelBufOut"<< endl;
+    exit(1);
   }
   // allocate host-side buffers for packed input and outputs
   ExtMemWord * packedImages = new ExtMemWord[(count * psi)];
   ExtMemWord * packedOut = new ExtMemWord[(count * pso)];
   
-  tiny_cnn::chaninterleave_layer<tiny_cnn::activation::identity> interleaver(3, 32 * 32, false);
+  tiny_cnn::chaninterleave_layer<tiny_cnn::activation::identity> interleaver(IMG_CH, IMG_DIM * IMG_DIM, false);
   // interleave and pack inputs
   for(unsigned int i = 0; i < count; i++) {
     tiny_cnn::vec_t interleaved = interleaver.forward_propagation(imgs[i], 0);

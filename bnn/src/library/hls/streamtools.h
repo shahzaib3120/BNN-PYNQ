@@ -48,6 +48,234 @@
 #ifndef STREAMTOOLS_H
 #define STREAMTOOLS_H
 
+// lookup table defined for alternate padding in StreamPad up to 256 channels
+static ap_uint<256> lookuptable("1010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010",2);
+
+// function to concatanate 3 three streams, (You can modify it to support any no. of streams. Width of out stream should e NumChannels*streamstoconcat)
+template<unsigned int NumChannels, unsigned int Dim, unsigned int Precision = 1>
+void ConcatStream(hls::stream<ap_uint<NumChannels * Precision>> & in1 , hls::stream<ap_uint<NumChannels * Precision>> & in2, hls::stream<ap_uint<NumChannels * Precision>> & in3, hls::stream<ap_uint<NumChannels*Precision*3>> &out )
+{
+	const unsigned int streamstoconcat = 3;
+	ap_uint<NumChannels * Precision * streamstoconcat> dataout = 0;
+	for (unsigned int i = 0 ; i < Dim*Dim; i++)
+	{
+#pragma HLS PIPELINE II=1
+		dataout(NumChannels*Precision*1-1, NumChannels*Precision*1-NumChannels*Precision) = in1.read();
+		dataout(NumChannels*Precision*2-1, NumChannels*Precision*2-NumChannels*Precision) = in2.read();
+		dataout(NumChannels*Precision*3-1, NumChannels*Precision*3-NumChannels*Precision) = in3.read();
+		out.write(dataout);
+	}
+}
+
+// concatenating on batch of input
+template<unsigned int NumChannels, unsigned int Dim, unsigned int Precision = 1>
+void ConcatStream_Batch(hls::stream<ap_uint<NumChannels * Precision>> &in1, hls::stream<ap_uint<NumChannels * Precision>> &in2, hls::stream<ap_uint<NumChannels * Precision>> & in3, hls::stream<ap_uint<NumChannels*Precision*3>> &out, unsigned int numReps)
+{
+	for(unsigned int i = 0; i < numReps; i++)
+	{
+		ConcatStream<NumChannels, Dim, Precision>(in1, in2, in3, out);
+	}
+}
+
+// function to clone stream into any no. (You can add your streams)
+template<unsigned int NumChannels, unsigned int Dim, unsigned int Precision = 1>
+void CloneStream(hls::stream<ap_uint<NumChannels * Precision>> &in, hls::stream<ap_uint<NumChannels * Precision>> &out1, hls::stream<ap_uint<NumChannels * Precision>> &out2/*, hls::stream<ap_uint<NumChannels * Precision>> &out3*/)
+{
+	ap_uint<NumChannels * Precision> data;
+	for(unsigned int i = 0; i < Dim*Dim; i++)
+	{
+#pragma HLS PIPELINE II=1
+		data = in.read();
+		out1.write(data);
+		out2.write(data);
+		//out3.write(data);
+	}
+}
+
+// function to operate on a batch on input
+template<unsigned int NumChannels, unsigned int Dim, unsigned int Precision = 1>
+void CloneStream_Batch(hls::stream<ap_uint<NumChannels * Precision>> &in, hls::stream<ap_uint<NumChannels* Precision>> &out1, hls::stream<ap_uint<NumChannels * Precision>> &out2/*, hls::stream<ap_uint<NumChannels * Precision>> &out3*/, unsigned int numReps)
+{
+	for(unsigned int i = 0; i < numReps; i++)
+	{
+		CloneStream<NumChannels, Dim, Precision>(in, out1, out2/*, out3*/);
+	}
+}
+
+// Reshape input stream to output only useful data when padding is VALID:
+// Might drop lines and columns at right and bottom
+template<
+	unsigned int ImgDim,
+	unsigned int NumChannels,
+	unsigned int Precision = 1>
+void ValidResize(hls::stream<ap_uint<NumChannels *Precision> > &in, hls::stream<ap_uint<NumChannels*Precision> > & out)
+{
+	constexpr unsigned int drop = 1;
+	constexpr unsigned int dropAt = ImgDim - drop;
+	for(unsigned int i=0; i< dropAt; i++)
+	{
+		for(unsigned int j=0; j<ImgDim; j++)
+		{
+			#pragma HLS PIPELINE II=1
+			ap_uint<NumChannels*Precision> data = in.read();
+
+			if(j < dropAt)
+				out.write(data);
+		}
+	}
+	for(unsigned int i = 0; i<drop; i++)
+	{
+		for(unsigned int j=0; j<ImgDim; j++)
+		{
+			#pragma HLS PIPELINE II=1
+			in.read();
+		}
+	}
+}
+
+template<
+	unsigned int ImgDim,
+	unsigned int NumChannels,
+	unsigned int Precision = 1>
+void ValidResize_Batch(hls::stream<ap_uint<NumChannels*Precision> > &in, hls::stream<ap_uint<NumChannels*Precision> > &out, const unsigned int numReps)
+{
+	for (unsigned int rep = 0; rep < numReps; rep++)
+	{
+		ValidResize<ImgDim, NumChannels, Precision>(in, out);
+	}
+}
+
+template<
+        unsigned int NumChannels,
+        unsigned int Precision=1
+        >
+void StreamPad(hls::stream<ap_uint<NumChannels * Precision> > &in,
+        hls::stream<ap_uint<NumChannels * Precision> > &out,
+        const unsigned int ImgDim,
+        const unsigned int PaddedDim)
+{
+
+    // Padding
+    const unsigned int Padding = PaddedDim - ImgDim;
+    // Padding Up and Left
+    const unsigned int PaddingUp = Padding / 2;
+    const unsigned int PaddingLeft = Padding / 2;
+    // Padding Down and Right (might be 1 element more than up and left in case of odd padding)
+    const unsigned int PaddingDown = Padding - PaddingUp;
+    const unsigned int PaddingRight = Padding - PaddingLeft;
+
+    ap_uint<NumChannels * Precision> outData, inData;
+    // Using lookup table
+	ap_uint<NumChannels * Precision> val = lookuptable((NumChannels * Precision)-1,0);
+
+	// Using equation
+	//ap_uint<NumChannels> val = (1/3)*((2^(NumChannels-1))*(3+(-1)^NumChannels)-2);
+
+    for(unsigned int y = 0; y < PaddedDim; y++){
+        for(unsigned int x = 0; x < PaddedDim; x++)
+        {
+#pragma HLS PIPELINE II=1
+
+            // Padding Rows
+            if(y < PaddingUp || y >= (PaddedDim - PaddingDown))
+            {
+                if (Precision != 1)
+                	outData = 0;
+                else
+                {
+					outData = val;
+					val = ~val;
+                }
+            }
+            // Padding Cols
+            else if(x < PaddingLeft || x >= (PaddedDim - PaddingRight))
+            {
+            	if (Precision != 1)
+					outData = 0;
+				else
+				{
+					outData = val;
+					val = ~val;
+				}
+            }
+            // No Padding
+            else
+            {
+                inData = in.read();
+                outData = inData;
+            }
+
+            out.write(outData);
+        }
+    }
+}
+
+template<unsigned int NumChannels, unsigned int Precision=1>
+void StreamPad_Batch(hls::stream<ap_uint<NumChannels * Precision> > &in, hls::stream<ap_uint<NumChannels * Precision> > &out,
+		const unsigned int ImgDim, const unsigned int PaddedDim, unsigned int numReps)
+{
+	for(unsigned int rep = 0; rep < numReps; rep++)
+	{
+		StreamPad<NumChannels, Precision>(in, out, ImgDim, PaddedDim);
+	}
+}
+
+// Reshape input stream to output only useful data when padding is same:
+// Might add 0s at left, right, upper, lower side of the input
+// Pad with 0
+template<unsigned int NumChannels, unsigned int Precision =1>
+void StreamPadZero(hls::stream<ap_uint<NumChannels * Precision> > &in, hls::stream<ap_uint<NumChannels * Precision> > &out, const unsigned int ImgDim, const unsigned int PaddedDim)
+{
+
+    // Padding
+    const unsigned int Padding = PaddedDim - ImgDim;
+    // Padding Up and Left
+    const unsigned int PaddingUp = Padding / 2;
+    const unsigned int PaddingLeft = Padding / 2;
+    // Padding Down and Right (might be 1 element more than up and left in case of odd padding)
+    const unsigned int PaddingDown = Padding - PaddingUp;
+    const unsigned int PaddingRight = Padding - PaddingLeft;
+
+    ap_uint<NumChannels* Precision> outData, inData;
+
+    for(unsigned int y = 0; y < PaddedDim; y++)
+    {
+        for(unsigned int x = 0; x < PaddedDim; x++)
+        {
+            #pragma HLS PIPELINE II=1
+
+            // Padding Rows
+            if(y < PaddingUp || y >= (PaddedDim - PaddingDown))
+            {
+                outData = 0;
+            }
+            // Padding Cols
+            else if(x < PaddingLeft || x >= (PaddedDim - PaddingRight))
+            {
+                outData = 0;
+            }
+            // No Padding
+            else
+            {
+                inData = in.read();
+                outData = inData;
+            }
+
+            out.write(outData);
+        }
+    }
+}
+
+template<unsigned int NumChannels, unsigned int Precision = 1>
+void StreamPadZero_Batch(hls::stream<ap_uint<NumChannels * Precision> > &in, hls::stream<ap_uint<NumChannels * Precision> > &out,
+		const unsigned int ImgDim, const unsigned int PaddedDim, unsigned int numReps)
+{
+	for(unsigned int rep = 0; rep < numReps; rep++)
+	{
+		StreamPadZero<NumChannels, Precision>(in, out, ImgDim, PaddedDim);
+	}
+}
+
 // only let the first X elements of a stream to pass through, the remainder
 // are consumed from input but not re-emitted from the output
 // useful for getting rid of e.g. padding words
@@ -180,26 +408,29 @@ template<unsigned W, unsigned N>
   }
 };
 
-
 template<unsigned IW, unsigned OW, unsigned N>
-class WidthAdjustedOutputStream {
+class WidthAdjustedOutputStream
+{
   hls::stream<ap_uint<IW>>  m_buffer;
   hls::stream<ap_uint<OW>> &m_target;
   unsigned const  m_reps;
   
  public:
   WidthAdjustedOutputStream(hls::stream<ap_uint<OW> >&  target, unsigned const  reps) : m_target(target), m_reps(reps) {}
-  ~WidthAdjustedOutputStream() {
+  ~WidthAdjustedOutputStream()
+  {
     StreamingDataWidthConverter_Batch<IW, OW, N>(m_buffer, m_target, m_reps);
   }
 
  public:
-  operator hls::stream<ap_uint<IW> >&() {
+  operator hls::stream<ap_uint<IW> >&()
+  {
     return  m_buffer;
   }
 };
 template<unsigned W, unsigned N>
- class WidthAdjustedOutputStream<W, W, N> {
+class WidthAdjustedOutputStream<W, W, N>
+{
   hls::stream<ap_uint<W>> &m_target;
 
  public:

@@ -53,6 +53,7 @@
 
 #include "streamtools.h"
 #include "mvau.hpp"
+#define CASSERT_DATAFLOW(x);
 
 template<
 		unsigned int ConvKernelDim,		// e.g 3 for a 3x3 conv kernel (assumed square)
@@ -71,7 +72,7 @@ template<
 		int InStreamW, int OutStreamW,  // safely deducible (stream width must be int though!)
 		typename TW,   typename TA,  typename R
 >
-void ConvLayer_Batch(hls::stream<ap_uint<InStreamW>>  &in,
+void ConvLayerValid_Batch(hls::stream<ap_uint<InStreamW>>  &in,
 			    hls::stream<ap_uint<OutStreamW>> &out,
 			    TW const        &weights,
 			    TA const        &activation,
@@ -88,6 +89,97 @@ void ConvLayer_Batch(hls::stream<ap_uint<InStreamW>>  &in,
 			OFMDim, SIMD,1>(wa_in, convInp, reps);
   Matrix_Vector_Activate_Batch<MatrixW, MatrixH, SIMD, PE, TSrcI, TDstI, TWeightI>
     (static_cast<hls::stream<ap_uint<SIMD*TSrcI::width>>&>(convInp),
+     static_cast<hls::stream<ap_uint<PE*TDstI::width>>&>  (mvOut),
+     weights, activation, reps* OFMDim * OFMDim, r);
+}
+
+template<
+		unsigned int ConvKernelDim,		// e.g 3 for a 3x3 conv kernel (assumed square)
+		unsigned int IFMChannels,		// number of input feature maps
+		unsigned int IFMDim,			// width of input feature map (assumed square)
+		unsigned int OFMChannels,		// number of output feature maps
+		unsigned int OFMDim,			// IFMDim-ConvKernelDim+1 or less
+
+		unsigned int SIMD, 				// number of SIMD lanes
+		unsigned int PE,				// number of PEs
+
+		typename TSrcI = Identity,      // redefine I/O interpretation as needed for input activations
+		typename TDstI = Identity,		// redefine I/O interpretation as needed for output activations
+		typename TWeightI = Identity,	// redefine I/O interpretation as needed for weigths
+
+		int InStreamW, int OutStreamW,  // safely deducible (stream width must be int though!)
+		typename TW,   typename TA,  typename R
+>
+void ConvLayerSame_Batch(hls::stream<ap_uint<InStreamW>>  &in,
+			    hls::stream<ap_uint<OutStreamW>> &out,
+			    TW const        &weights,
+			    TA const        &activation,
+			    unsigned const   reps,
+				R const &r)
+{
+#pragma HLS INLINE
+  unsigned const MatrixW = ConvKernelDim * ConvKernelDim * IFMChannels;
+  unsigned const MatrixH = OFMChannels;
+  unsigned const InpPerImage = (IFMDim+ConvKernelDim-1)*(IFMDim+ConvKernelDim-1)*IFMChannels/InStreamW * TSrcI::width;
+
+  hls::stream<ap_uint<TSrcI::width*IFMChannels>> padded("ConLayerSame_Batch.padded");
+  StreamPad_Batch<IFMChannels, TSrcI::width> (in, padded, IFMDim, IFMDim+ConvKernelDim-1, reps);
+
+  WidthAdjustedInputStream <InStreamW, SIMD*TSrcI::width, InpPerImage>  wa_in (padded,  reps);
+  WidthAdjustedOutputStream <PE*TDstI::width, OutStreamW, OFMDim * OFMDim * (OFMChannels / PE)>  mvOut (out,  reps);
+  hls::stream<ap_uint<SIMD*TSrcI::width> > convInp("StreamingConvLayer_Batch.convInp");
+  ConvolutionInputGenerator<ConvKernelDim, IFMChannels, TSrcI::width, IFMDim+ConvKernelDim-1,
+			OFMDim, SIMD,1>(wa_in, convInp, reps);
+  Matrix_Vector_Activate_Batch<MatrixW, MatrixH, SIMD, PE, TSrcI, TDstI, TWeightI>
+    (static_cast<hls::stream<ap_uint<SIMD*TSrcI::width>>&>(convInp),
+     static_cast<hls::stream<ap_uint<PE*TDstI::width>>&>  (mvOut),
+     weights, activation, reps* OFMDim * OFMDim, r);
+}
+
+template<
+		unsigned int ConvKernelDim,		// e.g 3 for a 3x3 conv kernel (assumed square)
+		unsigned int IFMChannels,		// number of input feature maps
+		unsigned int IFMDim,			// width of input feature map (assumed square)
+		unsigned int OFMChannels,		// number of output feature maps
+		unsigned int OFMDim,			// IFMDim-ConvKernelDim+1 or less
+
+		unsigned int SIMD, 				// number of SIMD lanes
+		unsigned int PE,				// number of PEs
+
+		typename TSrcI = Identity,      // redefine I/O interpretation as needed for input activations
+		typename TDstI = Identity,		// redefine I/O interpretation as needed for output activations
+		typename TWeightI = Identity,	// redefine I/O interpretation as needed for weigths
+
+		int InStreamW, int OutStreamW,  // safely deducible (stream width must be int though!)
+		typename TW,   typename TA,  typename R
+>
+void ConvLayerSame_Resnet_Batch(hls::stream<ap_uint<InStreamW>>  &in, hls::stream<ap_uint<OutStreamW>>  &residual,
+			    hls::stream<ap_uint<OutStreamW>> &out,
+			    TW const        &weights,
+			    TA const        &activation,
+			    unsigned const   reps,
+				R const &r)
+{
+#pragma HLS INLINE
+  unsigned const MatrixW = ConvKernelDim * ConvKernelDim * IFMChannels;
+  unsigned const MatrixH = OFMChannels;
+  unsigned const InpPerImage = (IFMDim+ConvKernelDim-1)*(IFMDim+ConvKernelDim-1)*IFMChannels/InStreamW * TSrcI::width;
+  unsigned const InpPerImage_res = OFMDim*OFMDim*OFMChannels/OutStreamW * TDstI::width;
+
+  hls::stream<ap_uint<TSrcI::width*IFMChannels>> padded("ConLayerSame_Batch.padded");
+  StreamPad_Batch<IFMChannels, TSrcI::width> (in, padded, IFMDim, IFMDim+ConvKernelDim-1, reps);
+
+  WidthAdjustedInputStream <InStreamW, SIMD*TSrcI::width, InpPerImage>  wa_in (padded,  reps);
+
+  WidthAdjustedInputStream <OutStreamW, PE*TDstI::width, InpPerImage_res>  wa_in_res (residual,  reps);
+
+  WidthAdjustedOutputStream <PE*TDstI::width, OutStreamW, OFMDim * OFMDim * (OFMChannels / PE)>  mvOut (out,  reps);
+
+  hls::stream<ap_uint<SIMD*TSrcI::width> > convInp("StreamingConvLayer_Batch.convInp");
+  ConvolutionInputGenerator<ConvKernelDim, IFMChannels, TSrcI::width, IFMDim+ConvKernelDim-1,
+			OFMDim, SIMD,1>(wa_in, convInp, reps);
+  Matrix_Vector_Activate_Resnet_Batch<MatrixW, MatrixH, SIMD, PE, TSrcI, TDstI, TWeightI>
+    (static_cast<hls::stream<ap_uint<SIMD*TSrcI::width>>&>(convInp),static_cast<hls::stream<ap_uint<PE*TDstI::width>>&>(wa_in_res),
      static_cast<hls::stream<ap_uint<PE*TDstI::width>>&>  (mvOut),
      weights, activation, reps* OFMDim * OFMDim, r);
 }

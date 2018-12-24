@@ -149,6 +149,7 @@ def printFCDefines(prefix, simd, pe, wmem, tmem, mw, mh, wpi, api, wpf, apf):
 def padTo(val, pad):
   rem = val % pad
   return val if rem == 0 else (val + pad - rem)
+
 # the quantization function
 def quantize(x, integer, fract):
     bits=integer+fract
@@ -156,11 +157,11 @@ def quantize(x, integer, fract):
 		return(binarize(x))
     n = float(2**fract) # GIULIO ADD CLIP
     return np.floor(x * n + 0.5) / n    
+
 # the binarization function, basically the sign encoded as 1 for positive and
 # 0 for negative
 def binarize(w):
     return 1 if w >=0 else 0
-
 
 # convert a fully connected binarized layer plus batch normalization into 
 # the simplified form (binary weight and positive threshold)
@@ -231,7 +232,7 @@ def makeFCBNComplex_QNN(weights, beta, gamma, mean, invstd, WPrecisions_fract, A
         thres = mean[neuron] + ((step - beta[neuron]) / (gamma[neuron]*invstd[neuron]))
         thres = np.floor(thres)		
     # Integer-like threshold
-	# compute a preliminary threshold from the batchnorm parameters
+	  # compute a preliminary threshold from the batchnorm parameters
     #thres = dtype=int64
     thresholds[neuron] = thres.astype(int)
     # binarize the synapses00
@@ -317,7 +318,6 @@ def makeConvBNComplex(weights, bias, beta, gamma, mean, invstd, interleaveChanne
   # reshape the output as desired
   w_bin = np.asarray(w_bin).reshape((numOut, fanin))
   return (w_bin, thresholds)
-  
 
 # pull out data from a numpy archive containing layer parameters
 # this should ideally be done using Lasagne, but this is simpler and works
@@ -431,7 +431,6 @@ def ArrayToString(array, precision, debug=False):
 
 	return int(val)
 
-
 # pack one or several BNN layers into PE on-chip memories, and create
 # initialization files (e.g. C++ initializer lists for HLS) from that
 # note that no binarization or quantization is performed
@@ -488,9 +487,9 @@ class BNNProcElemMem:
     if self.WPrecision==1:
         Ap = np.pad(A, ((0, padN), (0, padS)), 'constant', constant_values=1 )
     else:
-#	    pad_word = ArrayToString(np.full((self.numSIMD),1), self.WPrecision)
+	    #pad_word = ArrayToString(np.full((self.numSIMD),1), self.WPrecision)
 	    Ap = np.pad(A, ((0, padN), (0, padS)), 'constant', constant_values=0 )
-	# pad thresholds
+	  # pad thresholds
     max_thres = pow(2, self.numThresBits) - 1
     if self.APrecision==1:
 	    Tp = np.pad(T, ((0, padN)), 'constant', constant_values=max_thres)
@@ -664,8 +663,8 @@ class BNNProcElemMem:
       self.__wmem2bin(self.weightMem[pe], targetDir+"/"+prefix+"-"+str(pe)+"-weights.bin", self.WPrecision==1)
       self.__tmem2bin(self.thresMem[pe], targetDir+"/"+prefix+"-"+str(pe)+"-thres.bin", False)
 
-# Finnthesizer HLS init files generation. Use these outputed header files for including params during bitstream generation
-  def createHLSInitFiles(self, targetFile, varSuffix=""):
+  # Finnthesizer HLS init files generation. Use these outputed header files for including params during bitstream generation
+  def createHLSInitFiles(self, targetFile, varSuffix="", writethreshs = True):
     outFile = open(targetFile , "wt")
     if self.WPrecision==1:
         wMemType = "ap_uint<1>"
@@ -709,14 +708,14 @@ class BNNProcElemMem:
     outFile.write("\n}\n};\n")
     # write the threshold memory init data
     # np.save("tresh"+str(varSuffix)+".npy",self.thresMem)
-    if (self.numThresholds==1):
-        outFile.write("ThresholdsActivation<%d,%d,%d,%s,%s> threshs%s = {\n{\n" % (self.thresMemDepth, self.numPE, self.numThresholds, tMemType, ActType, varSuffix))
-        outFile.write(",".join(map(lambda pe:"{\n"+(",\n".join(map(str, pe) ))+"\n}", self.thresMem)))
-    else:
-        outFile.write("ThresholdsActivation<%d,%d,%d,%s,%s,%d> threshs%s = {\n{\n" % (self.thresMemDepth, self.numPE, self.numThresholds, tMemType, ActType, MinActVal, varSuffix))
-        outFile.write(",".join(map(lambda pe:"{\n"+(",\n".join(map(lambda nthresh:"{\n"+",\n".join(map(str,nthresh))+"\n}", pe) ))+"\n}", self.thresMem)))
-    #outFile.write(",".join(map(lambda pe: map(lambda nthresh:"{\n"+(",\n".join(map(str, nthresh) ))+"\n}", pe), self.thresMem)))
-    outFile.write("\n}\n};\n")
+    if writethreshs:
+      if (self.numThresholds==1):
+          outFile.write("ThresholdsActivation<%d,%d,%d,%s,%s> threshs%s = {\n{\n" % (self.thresMemDepth, self.numPE, self.numThresholds, tMemType, ActType, varSuffix))
+          outFile.write(",".join(map(lambda pe:"{\n"+(",\n".join(map(str, pe) ))+"\n}", self.thresMem)))
+          outFile.write("\n}\n};\n")
+      else:
+          outFile.write("ThresholdsActivation<%d,%d,%d,%s,%s,%d> threshs%s = {\n{\n" % (self.thresMemDepth, self.numPE, self.numThresholds, tMemType, ActType, MinActVal, varSuffix))
+          outFile.write(",".join(map(lambda pe:"{\n"+(",\n".join(map(lambda nthresh:"{\n"+",\n".join(map(str,nthresh))+"\n}", pe) ))+"\n}", self.thresMem)))
+          #outFile.write(",".join(map(lambda pe: map(lambda nthresh:"{\n"+(",\n".join(map(str, nthresh) ))+"\n}", pe), self.thresMem)))
+          outFile.write("\n}\n};\n")
     outFile.close()
-
-

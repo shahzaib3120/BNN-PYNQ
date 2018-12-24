@@ -115,11 +115,11 @@ if [[ ("$MODE" == "h") || ("$MODE" == "a")  ]]; then
   cd $HLS_OUT_DIR/..
   if [[ ("$NETWORK" == "cnv"*) ]]; then
 	PARAMS="$XILINX_BNN_ROOT/../params/cifar10/$NETWORK"
-	TEST_INPUT="$XILINX_BNN_ROOT/../../tests/Test_image/deer.bin"
+	TEST_INPUT="$XILINX_BNN_ROOT/../../tests/Test_image/mnist_15.bin"
 	TEST_RESULT=4
   elif [[ ("$NETWORK" == "lfc"*) ]]; then
 	PARAMS="$XILINX_BNN_ROOT/../params/mnist/$NETWORK"
-	TEST_INPUT="$XILINX_BNN_ROOT/../../tests/Test_image/3.image-idx3-ubyte"
+	TEST_INPUT="$XILINX_BNN_ROOT/../../tests/Test_image/3.bin"
 	TEST_RESULT=3
   fi
   if [[ ("$PLATFORM" == "pynqZ1-Z2") ]]; then

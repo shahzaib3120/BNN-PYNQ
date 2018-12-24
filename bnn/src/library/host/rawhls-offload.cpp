@@ -55,13 +55,15 @@ void FoldedMVInit(const char * attachName) {
   if (!bufIn) {
     bufIn = new ExtMemWord[INPUT_BUF_ENTRIES];
     if (!bufIn) {
-      throw "Failed to allocate host buffer";
+      cout << "Failed to allocate host buffer" << endl;
+      exit(1);
     }
   }
   if (!bufOut) {
     bufOut = new ExtMemWord[OUTPUT_BUF_ENTRIES];
     if (!bufOut) {
-      throw "Failed to allocate host buffer";
+      cout << "Failed to allocate host buffer"<< endl;
+      exit(1);
     }
   }
 }

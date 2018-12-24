@@ -1,3 +1,14 @@
+# Additional Features in this V2
+
+1. Added for Same Convolution (with Zero (n-bit input) and Alternate Padding (0101... for 1-bit input))
+2. Added Same and Valid Odd Maxpool
+3. Added Cifar100 example
+4. Added Lenet Example
+5. Added Inception Block (example on MNIST included)
+6. Added Simple Resnet Block (exmaple on MNIST included)
+7. Training and extracting weights in Pytorch (Lenet example included) 
+8. Added Theano inference script (can be used to test .npz exported from pytorch)
+
 # BNN-PYNQ PIP INSTALL Package
 
 This repo contains the pip install package for Quantized Neural Network (QNN) on PYNQ. 

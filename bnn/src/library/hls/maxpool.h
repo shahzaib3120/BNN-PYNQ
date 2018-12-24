@@ -46,11 +46,11 @@
 
 #ifndef MAXPOOL_H
 #define MAXPOOL_H
- 
+#define CASSERT_DATAFLOW(x);
 #include <limits>
- 
+
 template<unsigned int ImgDim, unsigned int PoolDim, unsigned int NumChannels>
-void StreamingMaxPool(stream<ap_uint<NumChannels> > & in,
+void StreamingMaxPoolEven(stream<ap_uint<NumChannels> > & in,
 		stream<ap_uint<NumChannels> > & out) {
   CASSERT_DATAFLOW(ImgDim % PoolDim == 0);
   // need buffer space for a single maxpooled row of the image
@@ -83,12 +83,32 @@ void StreamingMaxPool(stream<ap_uint<NumChannels> > & in,
 
 // calling 1-image maxpool in a loop works well enough for now
 template<unsigned int ImgDim, unsigned int PoolDim, unsigned int NumChannels>
-void StreamingMaxPool_Batch(stream<ap_uint<NumChannels> > & in,
+void StreamingMaxPoolEven_Batch(stream<ap_uint<NumChannels> > & in,
 		stream<ap_uint<NumChannels> > & out, unsigned int numReps) {
   for (unsigned int rep = 0; rep < numReps; rep++) {
-    StreamingMaxPool<ImgDim, PoolDim, NumChannels>(in, out);
+    StreamingMaxPoolEven<ImgDim, PoolDim, NumChannels>(in, out);
   }
 }
+
+template<unsigned int ImgDim, unsigned int PoolDim, unsigned int NumChannels>
+void StreamingMaxPoolOddSame_Batch(stream<ap_uint<NumChannels>> & in, stream<ap_uint<NumChannels>> & out, unsigned int numReps)
+{
+	#pragma HLS INLINE
+	stream<ap_uint<NumChannels> > resizeOut;
+	StreamPadZero_Batch<NumChannels> (in, resizeOut, ImgDim, ImgDim + 1, numReps);
+	StreamingMaxPoolEven_Batch<ImgDim+1, PoolDim, NumChannels>(resizeOut, out, numReps);
+}
+
+
+template<unsigned int ImgDim, unsigned int PoolDim, unsigned int NumChannels>
+void StreamingMaxPoolOddValid_Batch(stream<ap_uint<NumChannels> > & in, stream<ap_uint<NumChannels> > & out, unsigned int numReps)
+{
+	#pragma HLS INLINE
+	stream<ap_uint<NumChannels> > resizeOut;
+	ValidResize_Batch<ImgDim,NumChannels>(in,resizeOut, numReps);
+	StreamingMaxPoolEven_Batch<ImgDim, PoolDim, NumChannels>(resizeOut, out, numReps);
+}
+
 
 template<unsigned int ImgDim, unsigned int PoolDim, unsigned int NumChannels, typename ActType, int min_value, 
 		int StreamW // safely deducible (stream width must be int though!)
@@ -144,8 +164,8 @@ void StreamingMaxPool_Precision(stream<ap_uint<StreamW> > & in,
 template<unsigned int ImgDim, unsigned int PoolDim, unsigned int NumChannels, typename ActType, int min_value, 
         int InStreamW, int OutStreamW  // safely deducible (stream width must be int though!)
 		>
-void StreamingMaxPool_Precision_Batch(stream<ap_uint<InStreamW> > & in,
-		stream<ap_uint<OutStreamW> > & out, unsigned int numReps) {
+void StreamingMaxPool_Precision_Batch(stream<ap_uint<InStreamW> > & in, stream<ap_uint<OutStreamW> > & out, unsigned int numReps)
+{
 #pragma HLS INLINE
   unsigned const  InpPerImage = ImgDim*ImgDim*NumChannels*ActType::width/InStreamW ;
   unsigned const  OutPerImage = ImgDim*ImgDim / (PoolDim*PoolDim);
@@ -156,6 +176,19 @@ void StreamingMaxPool_Precision_Batch(stream<ap_uint<InStreamW> > & in,
       (static_cast<hls::stream<ap_uint<NumChannels*ActType::width>>&>(wa_in), 
       static_cast<hls::stream<ap_uint<NumChannels*ActType::width>>&>(wa_out));
   }
+}
+
+// calling 1-image maxpool in a loop works well enough for now
+template<unsigned int ImgDim, unsigned int PoolDim, unsigned int NumChannels, typename ActType, int min_value,
+        int InStreamW, int OutStreamW  // safely deducible (stream width must be int though!)
+		>
+void StreamingMaxPoolOddValid_Precision_Batch(stream<ap_uint<InStreamW> > & in, stream<ap_uint<OutStreamW> > & out, unsigned int numReps)
+{
+
+#pragma HLS INLINE
+	stream<ap_uint<NumChannels*ActType::width> > resizeOut;
+	ValidResize_Batch<ImgDim,NumChannels, ActType::width >(in,resizeOut, numReps);
+	StreamingMaxPool_Precision_Batch<ImgDim, PoolDim, NumChannels, ActType, min_value>(resizeOut, out,numReps);
 }
 
 #endif

@@ -34,10 +34,14 @@ import sys
 from finnthesizer import *
 
 if __name__ == "__main__":
+
     bnnRoot = "."
-    npzFile = bnnRoot + "/cifar10-np-s0.50-1w-1a.npz"
-    targetDirBin = bnnRoot + "/binparam-cnvW1A1-pynq"
-    targetDirHLS = bnnRoot + "/binparam-cnvW1A1-pynq/hw"
+    npzFile = bnnRoot + "/weights/cifar10-np-hardtanh-s0.50-2.0w-2.0a.npz"
+    targetDirBin = bnnRoot + "/binparam-cnvW2A2-pynq"
+    targetDirHLS = bnnRoot + "/binparam-cnvW2A2-pynq/hw"
+
+    conv_layers = 6
+    fc_layers = 3
 
     #topology of convolutional layers (only for config.h defines)
     ifm       = [32, 30,  14,  12,   5,   3]
@@ -46,25 +50,23 @@ if __name__ == "__main__":
     ofm_ch    = [64, 64, 128, 128, 256, 256]   
     filterDim = [ 3,  3,   3,   3,   3,   3]
 
-    WeightsPrecisions_fractional =    [0 , 0 , 0 , 0 , 0 , 0 , 0, 0,  0]
-    ActivationPrecisions_fractional = [0 , 0 , 0 , 0 , 0 , 0 , 0, 0,  0]
-    InputPrecisions_fractional =      [7 , 0 , 0 , 0 , 0 , 0 , 0, 0,  0]
-    WeightsPrecisions_integer =       [1 , 1 , 1 , 1 , 1 , 1 , 1, 1,  1]
-    ActivationPrecisions_integer =    [1 , 1 , 1 , 1 , 1 , 1 , 1, 1, 16]
-    InputPrecisions_integer =         [1 , 1 , 1 , 1 , 1 , 1 , 1, 1,  1]
+    WeightsPrecisions_fractional =    [0 , 0 , 0 , 0 , 0 , 0 , 0, 0, 0]
+    ActivationPrecisions_fractional = [0 , 0 , 0 , 0 , 0 , 0 , 0, 0, 0]
+    InputPrecisions_fractional =      [7 , 0 , 0 , 0 , 0 , 0 , 0, 0, 0]
+    WeightsPrecisions_integer =       [2 , 2 , 2 , 2 , 2 , 2 , 2, 2, 2]
+    ActivationPrecisions_integer =    [2 , 2 , 2 , 2 , 2 , 2 , 2, 2, 1]
+    InputPrecisions_integer =         [1 , 2 , 2 , 2 , 2 , 2 , 2, 2, 2]
 
     classes = ['Airplane', 'Automobile', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck']
 
     #configuration of PE and SIMD counts
-    peCounts =    [16, 32, 16, 16,  4,  1, 1, 1, 4]
-    simdCounts =  [ 3, 32, 32, 32, 32, 32, 4, 8, 1]
+    peCounts =   [8, 16,  8,  8, 4, 1, 1, 2, 4]
+    simdCounts = [3, 16, 16, 16, 8, 8, 2, 2, 1]
 
     if not os.path.exists(targetDirBin):
       os.mkdir(targetDirBin)
     if not os.path.exists(targetDirHLS):
-      os.mkdir(targetDirHLS)    
-
-    #read weights
+      os.mkdir(targetDirHLS)      
     rHW = BNNWeightReader(npzFile, True)
 
     config = "/**\n"
@@ -72,8 +74,8 @@ if __name__ == "__main__":
     config+= " *\n **/\n\n"
     config+= "#ifndef __LAYER_CONFIG_H_\n#define __LAYER_CONFIG_H_\n\n"
 
-    # process convolutional layers
-    for convl in range(0, 6):
+    #process convolutional layers
+    for convl in range(0, conv_layers):
       peCount = peCounts[convl]
       simdCount = simdCounts[convl]
       WPrecision_fractional = WeightsPrecisions_fractional[convl]
@@ -85,7 +87,7 @@ if __name__ == "__main__":
       print "Using peCount = %d simdCount = %d for engine %d" % (peCount, simdCount, convl)
       if convl == 0:
         # use fixed point weights for the first layer
-        (w,t) = rHW.readConvBNComplex(WPrecision_fractional, APrecision_fractional, IPrecision_fractional, WPrecision_integer, APrecision_integer, IPrecision_integer, usePopCount=False)
+        (w,t) = rHW.readConvBNComplex(WPrecision_fractional, APrecision_fractional, IPrecision_fractional, WPrecision_integer, APrecision_integer, IPrecision_integer, usePopCount=False, numThresBits=24, numThresIntBits=16)
         # compute the padded width and height
         paddedH = padTo(w.shape[0], peCount)
         paddedW = padTo(w.shape[1], simdCount)
@@ -99,16 +101,14 @@ if __name__ == "__main__":
         m = BNNProcElemMem(peCount, simdCount, neededWMem, neededTMem, WPrecision_integer, APrecision_integer, IPrecision_integer, WPrecision_fractional, APrecision_fractional, IPrecision_fractional, numThresBits=24, numThresIntBits=16)
         m.addMatrix(w,t,paddedW,paddedH)
 
-
         config += (printConvDefines("L%d" % convl, filterDim[convl], ifm_ch[convl], ifm[convl], ofm_ch[convl], ofm[convl], simdCount, peCount, neededWMem, neededTMem, WPrecision_integer, APrecision_integer, WPrecision_fractional, APrecision_fractional)) + "\n" 
 
-        #generate HLS weight and threshold header file to initialize memory directly on bitstream generation       
+        #generate HLS weight and threshold header file to initialize memory directly on bitstream generation
         #m.createHLSInitFiles(targetDirHLS + "/memdata-" + str(convl) + ".h", str(convl))
 
         #generate binary weight and threshold files to initialize memory during runtime
-        #because HLS might not work for very large header files        
+        #because HLS might not work for very large header files 
         m.createBinFiles(targetDirBin, str(convl))
-
       else:
         # regular binarized layer
         (w,t) = rHW.readConvBNComplex(WPrecision_fractional, APrecision_fractional, IPrecision_fractional, WPrecision_integer, APrecision_integer, IPrecision_integer)
@@ -126,7 +126,7 @@ if __name__ == "__main__":
 
         config += (printConvDefines("L%d" % convl, filterDim[convl], ifm_ch[convl], ifm[convl], ofm_ch[convl], ofm[convl], simdCount, peCount, neededWMem, neededTMem, WPrecision_integer, APrecision_integer, WPrecision_fractional, APrecision_fractional)) + "\n" 
 
-        #generate HLS weight and threshold header file to initialize memory directly on bitstream generation        
+        #generate HLS weight and threshold header file to initialize memory directly on bitstream generation
         #m.createHLSInitFiles(targetDirHLS + "/memdata-" + str(convl) + ".h", str(convl))
 
         #generate binary weight and threshold files to initialize memory during runtime
@@ -134,7 +134,7 @@ if __name__ == "__main__":
         m.createBinFiles(targetDirBin, str(convl))
 
     # process fully-connected layers
-    for fcl in range(6,9):
+    for fcl in range(conv_layers,conv_layers + fc_layers):
       peCount = peCounts[fcl]
       simdCount = simdCounts[fcl]
       WPrecision_fractional = WeightsPrecisions_fractional[fcl]
@@ -147,8 +147,9 @@ if __name__ == "__main__":
       (w,t) =  rHW.readFCBNComplex(WPrecision_fractional, APrecision_fractional, IPrecision_fractional, WPrecision_integer, APrecision_integer, IPrecision_integer)
       # compute the padded width and height
       paddedH = padTo(w.shape[0], peCount)
-      if (fcl == 8):
+      if (fcl == conv_layers + fc_layers - 1):
         paddedH = padTo(w.shape[0], 64)
+        num_classes = w.shape[0]
       paddedW = padTo(w.shape[1], simdCount)
       # compute memory needed for weights and thresholds
       neededWMem = (paddedW * paddedH) / (simdCount * peCount)
@@ -163,13 +164,20 @@ if __name__ == "__main__":
       config += (printFCDefines("L%d" % fcl, simdCount, peCount, neededWMem, neededTMem, paddedW, paddedH, WPrecision_integer, APrecision_integer, WPrecision_fractional, APrecision_fractional)) + "\n" 
 
       #generate HLS weight and threshold header file to initialize memory directly on bitstream generation
-      #m.createHLSInitFiles(targetDirHLS + "/memdata-" + str(fcl) + ".h", str(fcl))
+      #if (fcl == conv_layers + fc_layers - 1):
+      # m.createHLSInitFiles(targetDirHLS + "/memdata-" + str(fcl) + ".h", str(fcl), writethreshs = False)
+      #else:
+      # m.createHLSInitFiles(targetDirHLS + "/memdata-" + str(fcl) + ".h", str(fcl))
 
       #generate binary weight and threshold files to initialize memory during runtime
-      #because HLS might not work for very large header files        
+      #because HLS might not work for very large header files 
       m.createBinFiles(targetDirBin, str(fcl))
 
-    config+="#endif //__LAYER_CONFIG_H_\n"
+    config+="\n#define LL_MH %d" %paddedH
+    config+="\n#define IMG_DIM %d" %ifm[0]
+    config+="\n#define IMG_CH %d" %ifm_ch[0]
+    config+="\n#define no_cl %d" %num_classes
+    config+="\n\n#endif //__LAYER_CONFIG_H_\n\n"
 
     configFile = open(targetDirHLS+"/config.h", "w")
     configFile.write(config)

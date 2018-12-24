@@ -61,7 +61,8 @@ using namespace std;
 string getBNNRoot() {
   char * bnnRoot = getenv ("XILINX_BNN_ROOT");
   if(!bnnRoot) {
-    throw "XILINX_BNN_ROOT must be set";
+    cout << "XILINX_BNN_ROOT must be set" << endl;
+    exit(1);
   }
   return string(bnnRoot);
 }
@@ -79,7 +80,8 @@ unsigned int paddedSize(unsigned int in, unsigned int padTo) {
 // pack into a stream of bits
 void binarizeAndPack(const vec_t & in, ExtMemWord * out, unsigned int inBufSize) {
   if(in.size() / bitsPerExtMemWord > inBufSize) {
-    throw "Not enough space in input buffer";
+    cout << "Not enough space in input buffer"<< endl;
+    exit(1);
   }
   // first, fill the target buffer with padding data
   memset(out, FOLDEDMV_INPUT_PADCHAR, inBufSize * sizeof(ExtMemWord));
@@ -112,7 +114,8 @@ void unpackAndDebinarize(const ExtMemWord * in, vec_t &out) {
 std::vector<int> testPrebinarized_nolabel(std::vector<vec_t> & imgs, const unsigned int labelBits, float &usecPerImage) {
   // TODO support labelBits > bitsPerExtMemWord
   if(labelBits > bitsPerExtMemWord) {
-    throw "labelBits > bitsPerExtMemWord not yet supported";
+    cout << "labelBits > bitsPerExtMemWord not yet supported"<< endl;
+    exit(1);
   }
   const unsigned int count = 1;
   cout << "Running prebinarized test for " << count << " images..." << endl;
@@ -170,7 +173,8 @@ std::vector<int> testPrebinarized_nolabel(std::vector<vec_t> & imgs, const unsig
 std::vector<int> testPrebinarized_nolabel_multiple_images(std::vector<vec_t> & imgs, const unsigned int labelBits, float &usecPerImage) {
   // TODO support labelBits > bitsPerExtMemWord
   if(labelBits > bitsPerExtMemWord) {
-    throw "labelBits > bitsPerExtMemWord not yet supported";
+    cout << "labelBits > bitsPerExtMemWord not yet supported"<< endl;
+    exit(1);
   }
   const unsigned int count = imgs.size();
   cout << "Running prebinarized test for " << count << " images..." << endl;
@@ -225,7 +229,8 @@ std::vector<int> testPrebinarized_nolabel_multiple_images(std::vector<vec_t> & i
 void testPrebinarized(std::vector<vec_t> & imgs, std::vector<label_t> & labels, const unsigned int labelBits) {
   // TODO support labelBits > bitsPerExtMemWord
   if(labelBits > bitsPerExtMemWord) {
-    throw "labelBits > bitsPerExtMemWord not yet supported";
+    cout << "labelBits > bitsPerExtMemWord not yet supported"<< endl;
+    exit(1);
   }
   const unsigned int count = imgs.size();
   cout << "Running prebinarized test for " << count << " images..." << endl;
@@ -280,7 +285,8 @@ void FoldedMVLoadLayerMem(std::string dir, unsigned int layerNo, unsigned int pe
     // load weights
     ifstream wf(dir + "/" + to_string(layerNo) + "-" + to_string(pe) + "-weights.bin", ios::binary | ios::in);
     if(!wf.is_open()) {
-      throw "Could not open file";
+      cout << "Could not open file"<< endl;
+      exit(1);
     }
     for(unsigned int line = 0 ; line < linesWMem; line++) {
       ExtMemWord e = 0;
@@ -291,8 +297,10 @@ void FoldedMVLoadLayerMem(std::string dir, unsigned int layerNo, unsigned int pe
 
     // load thresholds
     ifstream tf(dir + "/" + to_string(layerNo) + "-" + to_string(pe) + "-thres.bin", ios::binary | ios::in);
-    if(!tf.is_open())
-      throw "Could not open file";
+    if(!tf.is_open()){
+      cout << "Could not open file"<< endl;
+    	exit(1);
+    }
     for(unsigned int line = 0 ; line < linesTMem; line++) {
       for(unsigned int i = 0; i < cntThresh; i++){
         ExtMemWord e = 0;
@@ -403,23 +411,27 @@ void FoldedMVInit(const char * attachName) {
   if (!bufIn) {
     bufIn = new ExtMemWord[INPUT_BUF_ENTRIES];
     if (!bufIn){
-      throw "Failed to allocated host buffer";
+      cout << "Failed to allocated host buffer"<< endl;
+    exit(1);
     }
   }
   if (!bufOut) {
     bufOut = new ExtMemWord[OUTPUT_BUF_ENTRIES];	
     if (!bufOut) {
-      throw "Failed to allocated host buffer";			
+      cout << "Failed to allocated host buffer"<< endl;
+    exit(1);			
     }
   }
   if (!accelBufIn) {
     accelBufIn = thePlatform->allocAccelBuffer(INPUT_BUF_ENTRIES * sizeof(ExtMemWord));
     if (!accelBufIn) {
-      throw "Failed to allocate accel buffer";
+      cout << "Failed to allocate accel buffer"<< endl;
+    exit(1);
     }
     accelBufOut = thePlatform->allocAccelBuffer(OUTPUT_BUF_ENTRIES * sizeof(ExtMemWord));
     if (!accelBufOut) {
-      throw "Failed to allocate accel buffer";
+      cout << "Failed to allocate accel buffer"<< endl;
+    exit(1);
     }
   }
   // set up I/O buffer addresses for the accelerator

@@ -36,6 +36,7 @@ from __future__ import print_function
 import sys
 import os
 import time
+import subprocess
 
 import numpy as np
 np.random.seed(1234) # for reproducibility?
@@ -47,21 +48,25 @@ import theano
 import theano.tensor as T
 
 import lasagne
+import argparse
 
 import cPickle as pickle
 import gzip
 
 import binary_net
-import cnv
 
 from pylearn2.datasets.zca_dataset import ZCA_Dataset   
-from pylearn2.datasets.cifar10 import CIFAR10 
 from pylearn2.utils import serial
 
 from collections import OrderedDict
 
 if __name__ == "__main__":
-    
+    parser = argparse.ArgumentParser(description='Cifar training')
+    parser.add_argument('--dataset', '-d', default="cifar10", help='dataset to use cifar10/cifar100/mnist')
+    parser.add_argument('--model', '-m', default="cnv", help='model to use resnet/lenet/inception/cnv')
+    args = parser.parse_args()
+
+
     learning_parameters = OrderedDict()
     # BN parameters
     batch_size = 50
@@ -70,16 +75,13 @@ if __name__ == "__main__":
     learning_parameters.alpha = .1
     print("alpha = "+str(learning_parameters.alpha))
     learning_parameters.epsilon = 1e-4
-    print("epsilon = "+str(learning_parameters.epsilon))
-    
+    print("epsilon = "+str(learning_parameters.epsilon)) 
     # W_LR_scale = 1.    
     learning_parameters.W_LR_scale = "Glorot" # "Glorot" means we are using the coefficients from Glorot's paper
-    print("W_LR_scale = "+str(learning_parameters.W_LR_scale))
-    
+    print("W_LR_scale = "+str(learning_parameters.W_LR_scale))   
     # Training parameters
-    num_epochs = 500
-    print("num_epochs = "+str(num_epochs))
-    
+    num_epochs = 10
+    print("num_epochs = "+str(num_epochs))   
     # Decaying LR 
     LR_start = 0.001
     print("LR_start = "+str(LR_start))
@@ -87,52 +89,95 @@ if __name__ == "__main__":
     print("LR_fin = "+str(LR_fin))
     LR_decay = (LR_fin/LR_start)**(1./num_epochs)
     print("LR_decay = "+str(LR_decay))
-    # BTW, LR decay might good for the BN moving average...
-    
-    save_path = "cifar10_parameters.npz"
-    print("save_path = "+str(save_path))
-    
-    train_set_size = 45000
-    print("train_set_size = "+str(train_set_size))
     shuffle_parts = 1
     print("shuffle_parts = "+str(shuffle_parts))
+    	  
     
-    print('Loading CIFAR-10 dataset...')
-    
-    train_set = CIFAR10(which_set="train",start=0,stop = train_set_size)
-    valid_set = CIFAR10(which_set="train",start=train_set_size,stop = 50000)
-    test_set = CIFAR10(which_set="test")
-        
-    # bc01 format
-    # Inputs in the range [-1,+1]
-    # print("Inputs in the range [-1,+1]")
-    train_set.X = np.reshape(np.subtract(np.multiply(2./255.,train_set.X),1.),(-1,3,32,32))
-    valid_set.X = np.reshape(np.subtract(np.multiply(2./255.,valid_set.X),1.),(-1,3,32,32))
-    test_set.X = np.reshape(np.subtract(np.multiply(2./255.,test_set.X),1.),(-1,3,32,32))
-    
+    if args.dataset == 'cifar10':
+    	print('Loading CIFAR-10 dataset...')
+    	from pylearn2.datasets.cifar10 import CIFAR10
+        train_set = CIFAR10(which_set="train",start=0,stop = 45000)
+        valid_set = CIFAR10(which_set="train",start=45000,stop = 50000)
+        test_set = CIFAR10(which_set="test")
+        classes = 10
+        save_path = "weights/cifar10_parameters.npz"
+        print("save_path = "+str(save_path))
+        train_set.X = np.reshape(np.subtract(np.multiply(2./255.,train_set.X),1.),(-1,3,32,32))
+	valid_set.X = np.reshape(np.subtract(np.multiply(2./255.,valid_set.X),1.),(-1,3,32,32))
+	test_set.X = np.reshape(np.subtract(np.multiply(2./255.,test_set.X),1.),(-1,3,32,32))
+
+    elif args.dataset == 'cifar100':
+    	print('Loading CIFAR-100 dataset...')
+    	from pylearn2.datasets.cifar100 import CIFAR100
+    	pylearn_path = os.environ['PYLEARN2_DATA_PATH']
+    	path = os.path.join(pylearn_path,'cifar100', 'cifar-100-python')
+    	if not os.path.exists(path):
+    		cmd = subprocess.call('scripts/download_cifar100.sh')
+    	train_set = CIFAR100(which_set="train",start=0,stop = 45000)
+        valid_set = CIFAR100(which_set="train",start=45000,stop = 50000)
+        test_set = CIFAR100(which_set="test")
+        classes = 100
+        save_path = "weights/cifar100_parameters.npz"
+        print("save_path = "+str(save_path))
+        train_set.X = np.reshape(np.subtract(np.multiply(2./255.,train_set.X),1.),(-1,3,32,32))
+	valid_set.X = np.reshape(np.subtract(np.multiply(2./255.,valid_set.X),1.),(-1,3,32,32))
+	test_set.X = np.reshape(np.subtract(np.multiply(2./255.,test_set.X),1.),(-1,3,32,32))
+
+    elif args.dataset == 'mnist':
+    	print('Loading MNIST dataset...')
+    	from pylearn2.datasets.mnist import MNIST
+        train_set = MNIST(which_set= 'train', start=0, stop = 50000, center = False)
+	valid_set = MNIST(which_set= 'train', start=50000, stop = 60000, center = False)
+	test_set = MNIST(which_set= 'test', center = False)
+	classes = 10
+        if args.model == 'resnet':
+    	   save_path = "weights/resnet_parameters.npz"
+    	   print("save_path = "+str(save_path))
+        elif args.model == 'lenet':
+            save_path = "weights/lenet_parameters.npz"
+            print("save_path = "+str(save_path))
+        elif args.model == 'inception':
+	    save_path = "weights/inception_parameters.npz"
+            print("save_path = "+str(save_path))
+	train_set.X = 2* train_set.X.reshape(-1, 1, 28, 28) - 1.
+	valid_set.X = 2* valid_set.X.reshape(-1, 1, 28, 28) - 1.
+	test_set.X = 2* test_set.X.reshape(-1, 1, 28, 28) - 1.
+ 
     # flatten targets
     train_set.y = np.hstack(train_set.y)
     valid_set.y = np.hstack(valid_set.y)
     test_set.y = np.hstack(test_set.y)
     
     # Onehot the targets
-    train_set.y = np.float32(np.eye(10)[train_set.y])    
-    valid_set.y = np.float32(np.eye(10)[valid_set.y])
-    test_set.y = np.float32(np.eye(10)[test_set.y])
+    train_set.y = np.float32(np.eye(classes)[train_set.y])    
+    valid_set.y = np.float32(np.eye(classes)[valid_set.y])
+    test_set.y = np.float32(np.eye(classes)[test_set.y])
     
     # for hinge loss
     train_set.y = 2* train_set.y - 1.
     valid_set.y = 2* valid_set.y - 1.
     test_set.y = 2* test_set.y - 1.
 
-    print('Building the CNN...') 
+    print('Building Network...') 
     
     # Prepare Theano variables for inputs and targets
     input = T.tensor4('inputs')
     target = T.matrix('targets')
     LR = T.scalar('LR', dtype=theano.config.floatX)
 
-    cnn = cnv.genCnv(input, 10, learning_parameters)
+
+    if args.model == 'cnv':
+    	import cnv
+    	cnn = cnv.genCnv(input, classes, learning_parameters)
+    elif args.model == 'resnet':
+    	import resnet
+    	cnn = resnet.genCnv(input, classes, learning_parameters)  
+    elif args.model == 'lenet':
+        import lenet
+        cnn = lenet.genCnv(input, classes, learning_parameters)
+    elif args.model == 'inception':
+    	import inception
+    	cnn = inception.genCnv(input, classes, learning_parameters) 
 
     train_output = lasagne.layers.get_output(cnn, deterministic=False)
     

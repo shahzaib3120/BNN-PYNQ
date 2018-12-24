@@ -201,4 +201,11 @@
 #define L8_WPF 0
 #define L8_APF 0
 
+
+#define LL_MH 64
+#define IMG_DIM 32
+#define IMG_CH 3
+#define no_cl 10
+
 #endif //__LAYER_CONFIG_H_
+

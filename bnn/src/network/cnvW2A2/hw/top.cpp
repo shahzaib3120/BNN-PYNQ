@@ -169,18 +169,18 @@ void DoCompute(ap_uint<64> *in, ap_uint<64> *out, const unsigned int numReps) {
   StreamingDataWidthConverter_Batch<192, 24, (32 * 32 * 3 * 8) / 192>(inter0_1, inter0_2, numReps);
   
   // convolutional layers
-  ConvLayer_Batch<L0_K, L0_IFM_CH, L0_IFM_DIM, L0_OFM_CH, L0_OFM_DIM, L0_SIMD, L0_PE, Slice<ap_fixed<8, 1, AP_TRN, AP_SAT>>, Slice<ap_int<2>>, Identity>(inter0_2, inter1, weights0, threshs0, numReps, ap_resource_lut());
-  ConvLayer_Batch<L1_K, L1_IFM_CH, L1_IFM_DIM, L1_OFM_CH, L1_OFM_DIM, L1_SIMD, L1_PE, Slice<ap_int<2>>, Slice<ap_int<2>>, Identity>(inter1, inter2, weights1, threshs1, numReps, ap_resource_lut());
+  ConvLayerValid_Batch<L0_K, L0_IFM_CH, L0_IFM_DIM, L0_OFM_CH, L0_OFM_DIM, L0_SIMD, L0_PE, Slice<ap_fixed<8, 1, AP_TRN, AP_SAT>>, Slice<ap_int<2>>, Identity>(inter0_2, inter1, weights0, threshs0, numReps, ap_resource_lut());
+  ConvLayerValid_Batch<L1_K, L1_IFM_CH, L1_IFM_DIM, L1_OFM_CH, L1_OFM_DIM, L1_SIMD, L1_PE, Slice<ap_int<2>>, Slice<ap_int<2>>, Identity>(inter1, inter2, weights1, threshs1, numReps, ap_resource_lut());
 
   StreamingMaxPool_Precision_Batch<L1_OFM_DIM, 2, L1_OFM_CH, ap_int<2>, -1>(inter2, inter3, numReps);
 
-  ConvLayer_Batch<L2_K, L2_IFM_CH, L2_IFM_DIM, L2_OFM_CH, L2_OFM_DIM, L2_SIMD, L2_PE, Slice<ap_int<2>>, Slice<ap_int<2>>, Identity>(inter3, inter4, weights2, threshs2, numReps, ap_resource_lut());
-  ConvLayer_Batch<L3_K, L3_IFM_CH, L3_IFM_DIM, L3_OFM_CH, L3_OFM_DIM, L3_SIMD, L3_PE, Slice<ap_int<2>>, Slice<ap_int<2>>, Identity>(inter4, inter5, weights3, threshs3, numReps, ap_resource_lut());
+  ConvLayerValid_Batch<L2_K, L2_IFM_CH, L2_IFM_DIM, L2_OFM_CH, L2_OFM_DIM, L2_SIMD, L2_PE, Slice<ap_int<2>>, Slice<ap_int<2>>, Identity>(inter3, inter4, weights2, threshs2, numReps, ap_resource_lut());
+  ConvLayerValid_Batch<L3_K, L3_IFM_CH, L3_IFM_DIM, L3_OFM_CH, L3_OFM_DIM, L3_SIMD, L3_PE, Slice<ap_int<2>>, Slice<ap_int<2>>, Identity>(inter4, inter5, weights3, threshs3, numReps, ap_resource_lut());
 
   StreamingMaxPool_Precision_Batch<L3_OFM_DIM, 2, L3_OFM_CH, ap_int<2>, -1>(inter5, inter6, numReps);
 
-  ConvLayer_Batch<L4_K, L4_IFM_CH, L4_IFM_DIM, L4_OFM_CH, L4_OFM_DIM, L4_SIMD, L4_PE, Slice<ap_int<2>>, Slice<ap_int<2>>, Identity>(inter6, inter7, weights4, threshs4, numReps, ap_resource_lut());
-  ConvLayer_Batch<L5_K, L5_IFM_CH, L5_IFM_DIM, L5_OFM_CH, L5_OFM_DIM, L5_SIMD, L5_PE, Slice<ap_int<2>>, Slice<ap_int<2>>, Identity>(inter7, inter8, weights5, threshs5, numReps, ap_resource_lut());
+  ConvLayerValid_Batch<L4_K, L4_IFM_CH, L4_IFM_DIM, L4_OFM_CH, L4_OFM_DIM, L4_SIMD, L4_PE, Slice<ap_int<2>>, Slice<ap_int<2>>, Identity>(inter6, inter7, weights4, threshs4, numReps, ap_resource_lut());
+  ConvLayerValid_Batch<L5_K, L5_IFM_CH, L5_IFM_DIM, L5_OFM_CH, L5_OFM_DIM, L5_SIMD, L5_PE, Slice<ap_int<2>>, Slice<ap_int<2>>, Identity>(inter7, inter8, weights5, threshs5, numReps, ap_resource_lut());
     
   // fully connected layers
   WidthAdjustedOutputStream<16 * L8_PE, 64, L8_MH / L8_PE>  wa_out(memOutStrm, numReps);
@@ -208,9 +208,9 @@ void BlackBoxJam(ap_uint<64> *in, ap_uint<64> *out, bool doInit,
 #pragma HLS INTERFACE s_axilite port=val bundle=control
 #pragma HLS INTERFACE s_axilite port=numReps bundle=control
 // signals to be mapped to the AXI master port (hostmem)
-#pragma HLS INTERFACE m_axi offset=slave port=in bundle=hostmem depth=512
+#pragma HLS INTERFACE m_axi offset=slave port=in bundle=hostmem depth=256
 #pragma HLS INTERFACE s_axilite port=in bundle=control
-#pragma HLS INTERFACE m_axi offset=slave port=out bundle=hostmem depth=16
+#pragma HLS INTERFACE m_axi offset=slave port=out bundle=hostmem depth=256
 #pragma HLS INTERFACE s_axilite port=out bundle=control
 
 // partition PE arrays

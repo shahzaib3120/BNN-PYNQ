@@ -37,8 +37,6 @@ import binary_net
 def genLfc(input, num_outputs, learning_parameters):
     # A function to generate the lfc network topology which matches the overlay for the Pynq board.
     # WARNING: If you change this file, it's likely the resultant weights will not fit on the Pynq overlay.
-    if num_outputs < 1 or num_outputs > 64:
-        error("num_outputs should be in the range of 1 to 64.")
     stochastic = False
     binary = True
     H = 1

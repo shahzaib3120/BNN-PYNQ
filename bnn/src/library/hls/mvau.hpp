@@ -142,4 +142,94 @@ void Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
     }
   }
 }
+
+
+template<
+  unsigned MatrixW, unsigned MatrixH, unsigned SIMD, unsigned PE,
+  typename TSrcI = Identity, typename TDstI = Identity, typename TWeightI = Identity,
+  typename TI, typename TO, typename TW, typename TA, typename R
+>
+void Matrix_Vector_Activate_Resnet_Batch(hls::stream<TI> &in, hls::stream<TO> &res, hls::stream<TO> &out, TW  const &weights, TA  const &activation,
+				  int const  reps,
+				  R const &r) {
+  // how many different rows each neuron will compute
+  // alternatively: number of vertical matrix chunks
+  unsigned const  NF = MatrixH / PE;
+  // how many synapse groups each row is split into
+  // alternatively: number of horizontal matrix chunks
+  unsigned const  SF = MatrixW / SIMD;
+  // input vector buffers
+  TI  inputBuf[SF];
+  unsigned int count = 0;
+#pragma HLS ARRAY_PARTITION variable=inputBuf complete dim=1
+  decltype(activation.init(0,0))  accu[PE];
+#pragma HLS ARRAY_PARTITION variable=accu complete dim=0
+  unsigned  nf   = 0;
+  unsigned  sf   = 0;
+  unsigned  tile = 0; // invariant: tile = nf*SF + sf
+  // everything merged into a common iteration space (one "big" loop instead
+  // of smaller nested loops) to get the pipelinening the way we want
+  unsigned const TOTAL_FOLD = NF * SF;
+  for(unsigned  i = 0; i < reps * TOTAL_FOLD; i++) {
+#pragma HLS PIPELINE II=1
+    TI  inElem;
+    TO residual;
+    if(nf == 0) {
+      // read input from stream
+      inElem = in.read();
+
+      // store in appropriate buffer for reuse
+      inputBuf[sf] = inElem;
+    }
+    else {
+      // reuse buffered input
+      inElem = inputBuf[sf];
+    }
+
+    // Threshold Initialisation
+    if(sf == 0) {
+      for(unsigned  pe = 0; pe < PE; pe++) {
+#pragma HLS UNROLL
+	    accu[pe] = activation.init(nf, pe);
+      }
+    }
+
+    // compute matrix-vector product for each processing element
+    auto const &w = weights.weights(tile);
+    for(unsigned  pe = 0; pe < PE; pe++) {
+#pragma HLS UNROLL
+      auto const  wgt = TWeightI()(w[pe]);
+      auto const  act = TSrcI()(inElem);
+      accu[pe] = mac<SIMD>(accu[pe], wgt, act, r);
+    }
+
+    // keep track of which folded synapse/neuron we are processing
+    ++tile;
+    if(++sf == SF)
+    {
+      // produce output and clear accumulators
+    	// adding residual connection
+    	residual = res.read();
+    	for (unsigned int pe = 0; pe < PE; pe++){
+#pragma HLS UNROLL
+    		accu[pe] +=residual[pe];
+    	}
+
+      auto  outElem = TDstI().template operator()<TO>();
+      for (unsigned  pe = 0; pe < PE; pe++) {
+#pragma HLS UNROLL
+	    outElem[pe] = activation.activate(nf, pe, accu[pe]);
+      }
+
+      out.write(outElem);
+
+      // next folded neuron or image
+      sf = 0;
+      if(++nf == NF) {
+	    nf   = 0;
+	    tile = 0;
+      }
+    }
+  }
+}
 #endif
