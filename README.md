@@ -8,6 +8,9 @@
 6. Added Simple Resnet Block (exmaple on MNIST included)
 7. Training and extracting weights in Pytorch (Lenet example included) 
 8. Added Theano inference script (can be used to test .npz exported from pytorch)
+9. Added support for ZC706 board (PYNQ linux image for ZC706 needed)
+
+The procedure for building PYNQ linux image for other boards is described in PYNQ documentation.
 
 # BNN-PYNQ PIP INSTALL Package
 
@@ -57,9 +60,11 @@ The repo is organized as follows:
 	-	bitstreams: contains the bitstreams for the 5 overlays
 		- pynqZ1-Z2: bitstreams for Pynq devices
 		- ultra96: bitstreams for Ultra96 devices
+		- zc706: bitstreams for ZC706 devices
 	-	libraries: pre-compiled shared objects for low-level driver of the 5 overlays each for hardware and software runtime
 		- pynqZ1-Z2: shared objects used by Pynq devices
 		- ultra96: shared objects used by ultra96
+		- zc706: shared objects used by ZC706
 	-	params: set of trained parameters for the 5 overlays:
 		- <a href="http://yann.lecun.com/exdb/mnist/" target="_blank"> MNIST </a> and <a href="https://www.nist.gov/srd/nist-special-database-19" target="_blank"> NIST </a> dataset for LFC network. Note that NIST dataset is only applicable to LFC-W1A1 by default.
 		- <a href="https://www.cs.toronto.edu/~kriz/cifar.html" target="_blank"> Cifar10 </a>, <a href="http://ufldl.stanford.edu/housenumbers/" target="_blank"> SVHN </a> and <a href="http://benchmark.ini.rub.de/?section=gtsdb&subsection=dataset" target="_blank"> German Road Signs </a> dataset for CNV network. Note that SVHN and German Road Signs databases are only applicable to CNV-W1A1 by default.
@@ -76,7 +81,7 @@ Following the step-by-step instructions:
 3.	Set the XILINX_BNN_ROOT environment variable to `<clone_path>/BNN_PYNQ/bnn/src/`
 4.	Launch the shell script make-hw.sh with passing parameters for target network, target platform and mode, with the command `./make-hw.sh {network} {platform} {mode}` where:
 	- network can be cnvW1A1, cnvW1A2, cnvW2A2 or lfcW1A1, lfcW1A2;
-	- platform can be pynqZ1-Z2 or ultra96;
+	- platform can be pynqZ1-Z2, zc706 or ultra96;
 	- mode can be `h` to launch Vivado HLS synthesis, `b` to launch the Vivado project (needs HLS synthesis results), `a` to launch both;
 5.	The results will be visible in `clone_path/BNN_PYNQ/bnn/src/network/output/` that is organized as follows:
 	- bitstream: contains the generated bitstream(s);
