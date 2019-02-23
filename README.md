@@ -22,7 +22,7 @@ Now, there are multiple implementations available supporting different precision
 - 1 bit weights and 2 bit activation (W1A2) for CNV and LFC
 - 2 bit weights and 2 bit activation (W2A2) for CNV
 
-We support 3 boards for hardware acceleration which are Pynq-Z1, Pynq-Z2 and Ultra96 (with PYNQ image).
+We support 4 boards for hardware acceleration which are Pynq-Z1, Pynq-Z2, ZC706 and Ultra96 (with PYNQ image).
 
 ## Citation
 If you find BNN-PYNQ useful, please cite the <a href="https://arxiv.org/abs/1612.07119" target="_blank">FINN paper</a>:
@@ -38,6 +38,8 @@ If you find BNN-PYNQ useful, please cite the <a href="https://arxiv.org/abs/1612
     }
 
 ## Quick Start
+
+Please refer to PYNQ <a href="https://pynq.readthedocs.io/en/latest/getting_started.html" target="_blank"> Getting Started</a> guide to set-up your PYNQ Board.
 
 In order to install it to your PYNQ, connect to the board, open a terminal and type:
 
@@ -56,7 +58,7 @@ The repo is organized as follows:
 	-	src: contains the sources of the different precision networks, the libraries to rebuild them, and scripts to train and pack the weights:
 		- library: FINN library for HLS QNN descriptions, host code, script to rebuilt and drivers for the PYNQ and Ultra96 (please refer to README for more details)
 		- network: HLS top functions for QNN topologies (CNV and LFC) with different implementations for weight and activation precision, host code and make script for HW and SW build (please refer to README for more details)
-		- training: scripts to train on the Cifar10 and MNIST datasets and scripts to pack the weights in a binary format which can be read by the overlay
+		- training: scripts to train on the Cifar10, GTSRB and MNIST datasets and scripts to pack the weights in a binary format which can be read by the overlay
 	-	bitstreams: contains the bitstreams for the 5 overlays
 		- pynqZ1-Z2: bitstreams for Pynq devices
 		- ultra96: bitstreams for Ultra96 devices
