@@ -6,8 +6,8 @@
 4. Added Lenet Example
 5. Added Inception Block (example on MNIST included)
 6. Added Simple Resnet Block (exmaple on MNIST included)
-7. Training and extracting weights in Pytorch (Lenet example included) 
-8. Added Theano inference script (can be used to test .npz exported from pytorch)
+7. W1A1, W1A2 Training and extracting weights in Pytorch 
+8. Added Theano inference script (used to test exported .npz)
 9. Added support for ZC706 board (PYNQ linux image for ZC706 needed)
 
 The procedure for building PYNQ linux image for other boards is described in PYNQ documentation.
