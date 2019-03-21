@@ -1,5 +1,23 @@
 # BinaryNets for Pynq
 
+## For Training CNV
+
+```bash
+    $ python trainer_cnv.py -d <dataset> -m <model>
+```
+dataset can be cifar10, cifar100, mnist
+model can be cnv, lenet, inception, resnet
+
+
+## For Inference
+
+```bash
+    $ python test_cnv.py -d <dataset> -m <model>
+```
+dataset can be cifar10, cifar100, mnist
+model can be cnv, lenet, inception, resnet
+
+
 ## Motivations
 
 This repository trains the [MNIST](http://yann.lecun.com/exdb/mnist/), [CIFAR-10](https://www.cs.toronto.edu/~kriz/cifar.html)
@@ -34,16 +52,6 @@ This python script trains an MLP (denoted LFC) on MNIST with BinaryNet.
 It should run for about 2 hours on a GRID K520 GPU (i.e., a g2.2xlarge instance on AWS.)
 The final test error should be around **1.52%**.
 
-### CIFAR-10 ConvNet
-
-```bash
-    $ python cifar10.py
-```
-    
-This python script trains a ConvNet (denoted CNV) on CIFAR-10 with BinaryNet.
-It should run for about 43 hours on a GRID K520 GPU (i.e., a g2.2xlarge instance on AWS.)
-With cuDNN installed, it should be about 12 hours.
-The final test error should be around **19.91%**.
 
 ### German Traffic Sign Recognition Benchmark ConvNet
 
@@ -81,7 +89,7 @@ Once the training process has finished, you'll have a file DATASET_parameters.np
 In order to load them into the [Pynq BNN Overlay](https://github.com/Xilinx/BNN-PYNQ) they need converted from real floating point values into binary values and packed into .bin files. 
 
 ```bash
-    $ python DATASET-gen-binary-weights.py
+    $ python <DATASET/MODEL>-gen-binary-weights.py
 ```
 
 These scripts will process the weights for the given dataset and place them into a new directory.
@@ -201,7 +209,7 @@ Alternatively, you can install the packages into your user's site packages locat
     $ export OMP_NUM_THREADS=`nproc`
     ```
 
-1. Install Pylearn2 (Only required for MNIST, CIFAR-10):
+1. Install Pylearn2 (Only required for MNIST, CIFAR-10, CIFAR-100):
 
     ```bash
     $ pip install --user numpy==1.11.0 # Pylearn2 seems to not work with the latest version of numpy

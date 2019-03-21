@@ -36,32 +36,32 @@ from finnthesizer import *
 if __name__ == "__main__":
 
     bnnRoot = "."
-    npzFile = bnnRoot + "/weights/resnet_parameters.npz"
-    targetDirBin = bnnRoot + "/binparam-cnvW1A1-pynq"
-    targetDirHLS = bnnRoot + "/binparam-cnvW1A1-pynq/hw"
+    npzFile = bnnRoot + "/weights/lenet_parameters.npz"
+    targetDirBin = bnnRoot + "/binparam-cnvW1A1-pynq-lenet"
+    targetDirHLS = bnnRoot + "/binparam-cnvW1A1-pynq-lenet/hw"
     
-    conv_layers = 3
+    num_classes = 10
+    conv_layers = 2
     fc_layers = 2
 
     #topology of convolutional layers (only for config.h defines)
-    ifm       = [28, 14,  14]
-    ofm       = [28, 14,  14]   
-    ifm_ch    = [ 1, 64,  64]
-    ofm_ch    = [64, 64, 64]   
-    filterDim = [ 3,  3,   3]
+    ifm       = [28, 13]
+    ofm       = [26, 13]   
+    ifm_ch    = [ 1, 32]
+    ofm_ch    = [32, 64]   
+    filterDim = [ 3,  5]
 
-    WeightsPrecisions_fractional =    [0 , 0 , 0 , 0 , 0]
-    ActivationPrecisions_fractional = [0 , 0 , 0 , 0 , 0]
-    InputPrecisions_fractional =      [7 , 0 , 0 , 0 , 0]
-    WeightsPrecisions_integer =       [1 , 1 , 1 , 1 , 1]
-    ActivationPrecisions_integer =    [1 , 1 , 1 , 1 , 16]
-    InputPrecisions_integer =         [1 , 1 , 1 , 1 , 1]
+    WeightsPrecisions_fractional =    [0 , 0 , 0 , 0]
+    ActivationPrecisions_fractional = [0 , 0 , 0 , 0]
+    InputPrecisions_fractional =      [7 , 0 , 0 , 0]
+    WeightsPrecisions_integer =       [1 , 1 , 1 , 1]
+    ActivationPrecisions_integer =    [1 , 1 , 1 , 16]
+    InputPrecisions_integer =         [1 , 1 , 1 , 1]
 
-    classes = map(lambda x: str(x), range(10))
+    classes = [str(x) for x in range(10)]
     #configuration of PE and SIMD counts
-    peCounts =    [32, 32, 64, 16, 4]
-    simdCounts =  [ 1, 32, 64, 32, 1]
-
+    peCounts = [32, 64, 64, 64]
+    simdCounts = [1, 32, 64, 1]
 
     if not os.path.exists(targetDirBin):
       os.mkdir(targetDirBin)
@@ -86,7 +86,7 @@ if __name__ == "__main__":
       WPrecision_integer = WeightsPrecisions_integer[convl]
       APrecision_integer = ActivationPrecisions_integer[convl]
       IPrecision_integer = InputPrecisions_integer[convl]
-      print "Using peCount = %d simdCount = %d for engine %d" % (peCount, simdCount, convl)
+      print("Using peCount = %d simdCount = %d for engine %d" % (peCount, simdCount, convl))
       if convl == 0:
         # use fixed point weights for the first layer
         (w,t) = rHW.readConvBNComplex(WPrecision_fractional, APrecision_fractional, IPrecision_fractional, WPrecision_integer, APrecision_integer, IPrecision_integer, usePopCount=False)
@@ -94,11 +94,11 @@ if __name__ == "__main__":
         paddedH = padTo(w.shape[0], peCount)
         paddedW = padTo(w.shape[1], simdCount)
         # compute memory needed for weights and thresholds
-        neededWMem = (paddedW * paddedH) / (simdCount * peCount)
-        neededTMem = paddedH / peCount
-        print "Layer %d: %d x %d" % (convl, paddedH, paddedW)
-        print "WMem = %d TMem = %d" % (neededWMem, neededTMem)
-        print "IPrecision = %d.%d WPrecision = %d.%d APrecision = %d.%d" % (IPrecision_integer, IPrecision_fractional, WPrecision_integer,WPrecision_fractional, APrecision_integer, APrecision_fractional)
+        neededWMem = (paddedW * paddedH) // (simdCount * peCount)
+        neededTMem = paddedH // peCount
+        print("Layer %d: %d x %d" % (convl, paddedH, paddedW))
+        print("WMem = %d TMem = %d" % (neededWMem, neededTMem))
+        print("IPrecision = %d.%d WPrecision = %d.%d APrecision = %d.%d" % (IPrecision_integer, IPrecision_fractional, WPrecision_integer,WPrecision_fractional, APrecision_integer, APrecision_fractional))
 
         m = BNNProcElemMem(peCount, simdCount, neededWMem, neededTMem, WPrecision_integer, APrecision_integer, IPrecision_integer, WPrecision_fractional, APrecision_fractional, IPrecision_fractional, numThresBits=24, numThresIntBits=16)
         m.addMatrix(w,t,paddedW,paddedH)
@@ -120,11 +120,11 @@ if __name__ == "__main__":
         paddedH = padTo(w.shape[0], peCount)
         paddedW = padTo(w.shape[1], simdCount)
         # compute memory needed for weights and thresholds
-        neededWMem = (paddedW * paddedH) / (simdCount * peCount)
-        neededTMem = paddedH / peCount
-        print "Layer %d: %d x %d" % (convl, paddedH, paddedW)
-        print "WMem = %d TMem = %d" % (neededWMem, neededTMem)
-        print "IPrecision = %d.%d WPrecision = %d.%d APrecision = %d.%d" % (IPrecision_integer, IPrecision_fractional, WPrecision_integer,WPrecision_fractional, APrecision_integer, APrecision_fractional)
+        neededWMem = (paddedW * paddedH) // (simdCount * peCount)
+        neededTMem = paddedH // peCount
+        print("Layer %d: %d x %d" % (convl, paddedH, paddedW))
+        print("WMem = %d TMem = %d" % (neededWMem, neededTMem))
+        print("IPrecision = %d.%d WPrecision = %d.%d APrecision = %d.%d" % (IPrecision_integer, IPrecision_fractional, WPrecision_integer,WPrecision_fractional, APrecision_integer, APrecision_fractional))
         m = BNNProcElemMem(peCount, simdCount, neededWMem, neededTMem, WPrecision_integer, APrecision_integer, IPrecision_integer, WPrecision_fractional, APrecision_fractional, IPrecision_fractional)
         m.addMatrix(w,t,paddedW,paddedH)
 
@@ -147,20 +147,19 @@ if __name__ == "__main__":
       WPrecision_integer = WeightsPrecisions_integer[fcl]
       APrecision_integer = ActivationPrecisions_integer[fcl]
       IPrecision_integer = InputPrecisions_integer[fcl]
-      print "Using peCount = %d simdCount = %d for engine %d" % (peCount, simdCount, fcl)
+      print("Using peCount = %d simdCount = %d for engine %d" % (peCount, simdCount, fcl))
       (w,t) =  rHW.readFCBNComplex(WPrecision_fractional, APrecision_fractional, IPrecision_fractional, WPrecision_integer, APrecision_integer, IPrecision_integer)
       # compute the padded width and height
       paddedH = padTo(w.shape[0], peCount)
       if (fcl == conv_layers + fc_layers - 1):
        	paddedH = padTo(w.shape[0], 64)
-        num_classes = w.shape[0]
       paddedW = padTo(w.shape[1], simdCount)
       # compute memory needed for weights and thresholds
-      neededWMem = (paddedW * paddedH) / (simdCount * peCount)
-      neededTMem = paddedH / peCount
-      print "Layer %d: %d x %d" % (fcl, paddedH, paddedW)
-      print "WMem = %d TMem = %d" % (neededWMem, neededTMem)
-      print "IPrecision = %d.%d WPrecision = %d.%d APrecision = %d.%d" % (IPrecision_integer, IPrecision_fractional, WPrecision_integer,WPrecision_fractional, APrecision_integer, APrecision_fractional)
+      neededWMem = (paddedW * paddedH) // (simdCount * peCount)
+      neededTMem = paddedH // peCount
+      print("Layer %d: %d x %d" % (fcl, paddedH, paddedW))
+      print("WMem = %d TMem = %d" % (neededWMem, neededTMem))
+      print("IPrecision = %d.%d WPrecision = %d.%d APrecision = %d.%d" % (IPrecision_integer, IPrecision_fractional, WPrecision_integer,WPrecision_fractional, APrecision_integer, APrecision_fractional))
 
       m = BNNProcElemMem(peCount, simdCount, neededWMem, neededTMem, WPrecision_integer, APrecision_integer, IPrecision_integer, WPrecision_fractional, APrecision_fractional, IPrecision_fractional)
       m.addMatrix(w,t,paddedW,paddedH)
@@ -169,9 +168,9 @@ if __name__ == "__main__":
 
       #generate HLS weight and threshold header file to initialize memory directly on bitstream generation
       #if (fcl == conv_layers + fc_layers - 1):
-      # m.createHLSInitFiles(targetDirHLS + "/memdata-" + str(fcl) + ".h", str(fcl), writethreshs = False)
+      #	m.createHLSInitFiles(targetDirHLS + "/memdata-" + str(fcl) + ".h", str(fcl), writethreshs = False)
       #else:
-      # m.createHLSInitFiles(targetDirHLS + "/memdata-" + str(fcl) + ".h", str(fcl))
+      #	m.createHLSInitFiles(targetDirHLS + "/memdata-" + str(fcl) + ".h", str(fcl))
 
       #generate binary weight and threshold files to initialize memory during runtime
       #because HLS might not work for very large header files        
@@ -180,7 +179,7 @@ if __name__ == "__main__":
     config+="\n#define LL_MH %d" %paddedH
     config+="\n#define IMG_DIM %d" %ifm[0]
     config+="\n#define IMG_CH %d" %ifm_ch[0]
-    config+="\n#define no_cl %d" %num_classes
+    config+="\n#define no_cl %d" %w.shape[0]
     config+="\n\n#endif //__LAYER_CONFIG_H_\n\n"
 
     configFile = open(targetDirHLS+"/config.h", "w")

@@ -35,9 +35,9 @@ import finnthesizer as fth
 
 if __name__ == "__main__":
     bnnRoot = "."
-    npzFile = bnnRoot + "/mnist-hardtanh-s0.250000-1.0w-1.0a.npz"
-    targetDirBin = bnnRoot + "/binparam-lfcW1A1-pynq"
-    targetDirHLS = bnnRoot + "/binparam-lfcW1A1-pynq/hw"
+    npzFile = bnnRoot + "/weights/mnist-hardtanh-s0.250000-1.0w-2.0a.npz"
+    targetDirBin = bnnRoot + "/binparam-lfcW1A2-pynq"
+    targetDirHLS = bnnRoot + "/binparam-lfcW1A2-pynq/hw"
 
     simdCounts = [64, 32, 64,  8]
     peCounts   = [32, 64, 32, 16]
@@ -46,10 +46,10 @@ if __name__ == "__main__":
     ActivationPrecisions_fractional = [0, 0, 0, 0]
     InputPrecisions_fractional      = [0, 0, 0, 0]
     WeightsPrecisions_integer       = [1, 1, 1, 1]
-    ActivationPrecisions_integer    = [1, 1, 1, 1]
-    InputPrecisions_integer         = [1, 1, 1, 1]
+    ActivationPrecisions_integer    = [2, 2, 2, 1]
+    InputPrecisions_integer         = [1, 2, 2, 2]
 
-    classes = map(lambda x: str(x), range(10))
+    classes = [str(x) for x in range(10)]
 
     fth.convertFCNetwork(npzFile, targetDirBin, targetDirHLS, simdCounts, peCounts, WeightsPrecisions_fractional, ActivationPrecisions_fractional, InputPrecisions_fractional, WeightsPrecisions_integer, ActivationPrecisions_integer, InputPrecisions_integer)
 

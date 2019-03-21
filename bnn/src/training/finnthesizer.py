@@ -32,7 +32,13 @@
 import numpy as np
 import os
 import sys
+from functools import reduce
 
+class error(Exception):
+    def __init__(self, m):
+        self.message = m
+    def __str__(self):
+        return self.message
 
 # convenience function to prepare a fully-connected BNN for FINN
 # with given number of (SIMD, PE) per layer
@@ -48,12 +54,12 @@ def convertFCNetwork(npzFile, targetDirBin, targetDirHLS, simdCounts, peCounts, 
   r = BNNWeightReader(npzFile, False)
 
   config = "/**\n"
-  config+= " * Finnthesizer Config-File Generation\n";
+  config+= " * Finnthesizer Config-File Generation\n"
   config+= " *\n **/\n\n"
   config+= "#ifndef __LAYER_CONFIG_H_\n#define __LAYER_CONFIG_H_\n\n"
 
   for l in range(numLayers):
-    print "process layer" + str(l)
+    print("process layer" + str(l))
     simdCount = simdCounts[l]
     peCount = peCounts[l]
     WPrecision_fractional = WeightsPrecisions_fractional[l]
@@ -74,12 +80,12 @@ def convertFCNetwork(npzFile, targetDirBin, targetDirHLS, simdCounts, peCounts, 
 	    paddedH = padTo(w.shape[0], max(peCount,64))
 
     # compute memory needed for weights and thresholds
-    neededWMem = (paddedW * paddedH) / (simdCount * peCount)
-    neededTMem = paddedH / peCount
+    neededWMem = (paddedW * paddedH) // (simdCount * peCount)
+    neededTMem = paddedH // peCount
 
-    print "Layer %d: %d x %d, SIMD = %d, PE = %d" % (l, paddedH, paddedW, simdCount, peCount)
-    print "WMem = %d TMem = %d" % (neededWMem, neededTMem)
-    print "IPrecision = %d.%d WPrecision = %d.%d APrecision = %d.%d" % (IPrecision_integer, IPrecision_fractional, WPrecision_integer,WPrecision_fractional, APrecision_integer, APrecision_fractional)
+    print("Layer %d: %d x %d, SIMD = %d, PE = %d" % (l, paddedH, paddedW, simdCount, peCount))
+    print("WMem = %d TMem = %d" % (neededWMem, neededTMem))
+    print("IPrecision = %d.%d WPrecision = %d.%d APrecision = %d.%d" % (IPrecision_integer, IPrecision_fractional, WPrecision_integer,WPrecision_fractional, APrecision_integer, APrecision_fractional))
      # instantiate PE memory generator
     m = BNNProcElemMem(peCount, simdCount, neededWMem, neededTMem, WPrecision_integer, APrecision_integer, IPrecision_integer, WPrecision_fractional, APrecision_fractional, IPrecision_fractional)  
     #add layer to config
@@ -89,15 +95,19 @@ def convertFCNetwork(npzFile, targetDirBin, targetDirHLS, simdCounts, peCounts, 
 
     # create HLS weight init files for initializing memory contents directly
     # while generating the bitstream
-    #m.createHLSInitFiles(targetDirHLS + "/memdata-" + str(l) + ".h", str(l))
+    m.createHLSInitFiles(targetDirHLS + "/memdata-" + str(l) + ".h", str(l))
 
     # create binary weight files -- useful for runtime initialization since
     # HLS might freeze / not work for very large header files
     # note that it will still be necessary to declare the PE memories in 
-    m.createBinFiles(targetDirBin, str(l))
+    #m.createBinFiles(targetDirBin, str(l))
     # create parameter files for tiny-cnn
-
-  config+="#endif //__LAYER_CONFIG_H_\n"
+  
+  config+="\n#define LL_MH %d" %paddedH
+  config+="\n#define IMG_DIM 28"
+  config+="\n#define IMG_CH 1"
+  config+="\n#define no_cl %d" %w.shape[0]
+  config+="\n\n#endif //__LAYER_CONFIG_H_\n\n"
   
   configFile = open(targetDirHLS+"/config.h", "w")
   configFile.write(config)
@@ -154,7 +164,7 @@ def padTo(val, pad):
 def quantize(x, integer, fract):
     bits=integer+fract
     if (bits==1):
-		return(binarize(x))
+      return(binarize(x))
     n = float(2**fract) # GIULIO ADD CLIP
     return np.floor(x * n + 0.5) / n    
 
@@ -170,10 +180,10 @@ def binarize(w):
 def makeFCBNComplex(weights, beta, gamma, mean, invstd, WPrecisions_int=1, WPrecisions_fract=0, use_rowmajor=False, usePopCount=True):
   ins = weights.shape[0]
   outs = weights.shape[1]
-  print "Extracting FCBN complex, ins = %d outs = %d" % (ins, outs)
+  print("Extracting FCBN complex, ins = %d outs = %d" % (ins, outs))
   # we'll fill in the binarized weights and thresholds iteratively
-  w_bin = range(ins*outs)
-  thresholds = range(outs)
+  w_bin = list(range(ins*outs))
+  thresholds = list(range(outs))
   for neuron in range(outs):
     # compute a preliminary threshold from the batchnorm parameters
     thres = mean[neuron] - (beta[neuron] / (gamma[neuron]*invstd[neuron]))
@@ -212,10 +222,10 @@ def makeFCBNComplex_QNN(weights, beta, gamma, mean, invstd, WPrecisions_fract, A
   ins = weights.shape[0]
   outs = weights.shape[1]
   APrecision = APrecisions_fract + APrecisions_int
-  print "Extracting FCBN complex, ins = %d outs = %d" % (ins, outs)
+  print("Extracting FCBN complex, ins = %d outs = %d" % (ins, outs))
   # we'll fill in the weights and thresholds iteratively
-  w_bin = range(ins*outs)
-  thresholds = range(outs)
+  w_bin = list(range(ins*outs))
+  thresholds = list(range(outs))
   #tep = np.linspace(-1,1,num=2**APrecision-1,endpoint=False) # Equidistant points between -1 and +1 (hardtanh)
   #step = step[1:] # Removing the -1 point for symmetrical quantization - hardtanh
   step = np.linspace(-1,1,num=2**APrecision-2,endpoint=False) + 1./(2**(APrecisions_fract+1)) # This one make -0.5 and +0.5 with 2 bits
@@ -260,13 +270,13 @@ def makeConvBNComplex(weights, bias, beta, gamma, mean, invstd, interleaveChanne
   numIn = weights.shape[1]
   k = weights.shape[2]
   if(k != weights.shape[3]):
-    raise "Nonsymmetric conv kernels are not yet supported"
-  print "Extracting conv-BN complex, OFM=%d IFM=%d k=%d" % (numOut, numIn, k)
+    raise error("Nonsymmetric conv kernels are not yet supported")
+  print("Extracting conv-BN complex, OFM=%d IFM=%d k=%d" % (numOut, numIn, k))
   # the fanin is used to ensure positive-only threshold
   fanin = numIn * k * k
-  w_bin = range(numOut * numIn * k * k)
+  w_bin = list(range(numOut * numIn * k * k))
   # one threshold per output channel
-  thresholds = range(numOut)
+  thresholds = list(range(numOut))
   dest_ind = 0
   step = np.linspace(-1,1,num=2**APrecision-2,endpoint=False) + 1./(2**(APrecisions_fract+1)) # This one make -0.5 and +0.5 with 2 bits
   # we'll fill in the binarized weights and thresholds iteratively
@@ -369,8 +379,8 @@ class BNNWeightReader:
         (Wb, T) = makeFCBNComplex_QNN(w, beta, gamma, mean, invstd, WPrecisions_fract, APrecisions_fract, WPrecisions_int, APrecisions_int, use_rowmajor=True)
     # if the interleave flag is set, permute elements in each row
     if self.interleaveChannels and self.numInterleaveChannels != 0:
-      print "Interleaving %d channels in fully connected layer..." % self.numInterleaveChannels
-      pixPerChan = Wb.shape[1] / self.numInterleaveChannels
+      print("Interleaving %d channels in fully connected layer..." % self.numInterleaveChannels)
+      pixPerChan = Wb.shape[1] // self.numInterleaveChannels
       Wb_perm = np.zeros(Wb.shape, dtype=np.int8)
       for r in range(Wb.shape[0]):
         for chan in range(self.numInterleaveChannels):
@@ -396,7 +406,6 @@ class BNNWeightReader:
 # create a 2D array of zeroes for the PE memories    
 def makeEmptyPEMems(numPE, memDepth, initVal):
   ret = []
-
   for i in range(numPE):
     ret += [ [initVal for i in range(memDepth)] ]
   return ret
@@ -405,7 +414,7 @@ def makeEmptyPEMems(numPE, memDepth, initVal):
 def ensureBinary(x):
   for i in x:
     if i != 0 and i != 1:
-      raise "Non-binary values found in BNN weight data"
+      raise error("Non-binary values found in BNN weight data")
 
 # turn a binary array into a string representation with MSB on the left
 # e.g. [A, B, C, D] becomes "DCBA"
@@ -426,7 +435,7 @@ def ArrayToString(array, precision, debug=False):
 		if tmp < 0:
 			tmp2 = 2**(precision) + tmp
 
-		tmp3 = int(tmp2 * (2**(precision*i)));
+		tmp3 = int(tmp2 * (2**(precision*i)))
 		val = int(val + tmp3)
 
 	return int(val)
@@ -500,9 +509,9 @@ class BNNProcElemMem:
     self.neuronPad += [padN]
     self.synapsePad += [padS]
     if (self.WPrecision==1 and self.APrecision==1 and self.IPrecision==1) or (self.WPrecision>=2):
-		self.AccuOffset = 0
+      self.AccuOffset = 0
     else:		
-		self.AccuOffset = padS
+      self.AccuOffset = padS
     return (Ap, Tp)
 
   def __updatePEMapping(self, A, T):
@@ -511,14 +520,14 @@ class BNNProcElemMem:
     n = A.shape[0]
     s = A.shape[1]
     if n % self.numPE != 0:
-      raise "Matrix height must be multiple of PE count"
+      raise error("Matrix height must be multiple of PE count")
     if s % self.numSIMD != 0:
-      raise "Matrix width must be multiple of SIMD width"
+      raise error("Matrix width must be multiple of SIMD width")
     if n != T.shape[0]:
-      raise "Number of neurons and thresholds do not match"
+      raise error("Number of neurons and thresholds do not match")
     # reshape and copy into PE memories
-    neuronsPerPE = n / self.numPE
-    synGroupsPerNeuron = s / self.numSIMD
+    neuronsPerPE = n // self.numPE
+    synGroupsPerNeuron = s // self.numSIMD
     # TODO check that there is enough room in the PE memory
     self.layerHeadsW += [ self.weightMemHead[0] ]
     self.layerHeadsT += [ self.thresMemHead[0] ]
@@ -545,10 +554,10 @@ class BNNProcElemMem:
     else: # Convert thresholds to ints before updating the PE mapping.
         #Ti = map(lambda x: int(x*2**(self.numThresBits - self.numThresIntBits))/(2.**(self.numThresBits - self.numThresIntBits)), T)
         if (self.APrecision==1):
-            Ti = map(lambda x: int(x*2**(self.numThresBits - self.numThresIntBits))/(2.**(self.numThresBits - self.numThresIntBits)), T)
+            Ti = [int(x*2**(self.numThresBits - self.numThresIntBits))/(2.**(self.numThresBits - self.numThresIntBits)) for x in T]
         else:
             round_func = lambda x: int(x)/(2.**(self.numThresBits - self.numThresIntBits))
-            Ti = map(np.vectorize(round_func), T)
+            Ti = list(map(np.vectorize(round_func), T))
         (Wp, Tp) = self.__padMatrix(W, Ti, padW, padH)
     # map to PE memories
     self.__updatePEMapping(Wp, Tp)
@@ -572,17 +581,17 @@ class BNNProcElemMem:
     for memInd in range(len(mem)):
       if isBinaryString:
         if len(mem[memInd]) > lenExtMemWord:
-          raise "SIMD width needs to suit into 64 bit ExtMemWord for now"
+          raise error("SIMD width needs to suit into 64 bit ExtMemWord for now")
         #pad to machine word
         if len(mem[memInd]) < lenExtMemWord:
           mem[memInd] = ('0' * (lenExtMemWord-len(mem[memInd]))) + mem[memInd]
-        for b in range(lenExtMemWord/8) :
+        for b in range(lenExtMemWord//8) :
             subByte = mem[memInd][lenExtMemWord-(b+1)*8:lenExtMemWord-b*8]
             outFile.write(struct.pack("B",int(subByte,2)))
       else:
           weightBin = bitstring.Bits(uint=mem[memInd], length=lenExtMemWord).unpack("bin:"+str(lenExtMemWord))[0]
           #write byte by byte
-          for b in range(lenExtMemWord/8) :
+          for b in range(lenExtMemWord//8) :
             subByte = weightBin[lenExtMemWord-(b+1)*8:lenExtMemWord-b*8]
             outFile.write(struct.pack("B",int(subByte,2)))  
     outFile.close()
@@ -595,7 +604,7 @@ class BNNProcElemMem:
     for memInd in range(len(mem)):
       if isBinaryString:
         if len(mem[memInd]) > lenExtMemWord:
-          raise "Threshold needs to fit into 64 bit ExtMemWord for now"
+          raise error("Threshold needs to fit into 64 bit ExtMemWord for now")
         if len(mem[memInd]) < lenExtMemWord:
           mem[memInd] = ('0' * (lenExtMemWord-len(mem[memInd]))) + mem[memInd]
         for b in range(lenExtMemWord/8) :
@@ -619,7 +628,7 @@ class BNNProcElemMem:
                  #print "WARNING: Threshold is out of datatype (int" + str(accuWidth) + "). Thresh is " + str(mem[memInd][numThresh]) + ", saturated to " + str(saturate)
                  mem[memInd][numThresh] = saturate
               #read as int
-              threshBin = bitstring.Bits(int=mem[memInd][numThresh], length=lenExtMemWord).unpack("bin:"+str(lenExtMemWord))[0]                           
+              threshBin = bitstring.Bits(int=int(mem[memInd][numThresh]), length=lenExtMemWord).unpack("bin:"+str(lenExtMemWord))[0]                           
            else:
               #read as fixed point to match with ap_fixed<lenExtMemWord,lenExtMemWord-(numThresBits-numThresIntBits)>
               sizeFract = self.numThresBits - self.numThresIntBits
@@ -647,12 +656,12 @@ class BNNProcElemMem:
                   else:
                       fractBin = fractBin + "0"
               if fractVal > 0:
-                  print "WARNING: fixed point threshold can not represent exact threshold. Thresh is " + str(mem[memInd][numThresh]) + ", " + str(sizeFract) + " Bits used for representing fraction."
+                  print("WARNING: fixed point threshold can not represent exact threshold. Thresh is " + str(mem[memInd][numThresh]) + ", " + str(sizeFract) + " Bits used for representing fraction.")
               threshBin = intBin + fractBin              
               #read as float
               #threshBin = bitstring.Bits(float=mem[memInd][numThresh], length=lenExtMemWord).unpack("bin:"+str(lenExtMemWord))[0]
            #write byte by byte
-           for b in range(lenExtMemWord/8):
+           for b in range(lenExtMemWord//8):
               subByte = threshBin[lenExtMemWord-(b+1)*8:lenExtMemWord-b*8]
               outFile.write(struct.pack("B",int(subByte,2))) 
     outFile.close()  
@@ -693,8 +702,8 @@ class BNNProcElemMem:
     outFile.write("\npadded synapses for each layer: \n")
     outFile.writelines(["%d " % x for x in self.synapsePad])
     outFile.write("\n*/\n\n")
-    outFile.write("const unsigned int matrixH"+varSuffix+"[] = {%s};\n" % ", ".join(map(lambda x: str(x[0]), self.layerSizes)))
-    outFile.write("const unsigned int matrixW"+varSuffix+"[] = {%s};\n" % ", ".join(map(lambda x: str(x[1]), self.layerSizes)))
+    outFile.write("const unsigned int matrixH"+varSuffix+"[] = {%s};\n" % ", ".join([str(x[0]) for x in self.layerSizes]))
+    outFile.write("const unsigned int matrixW"+varSuffix+"[] = {%s};\n" % ", ".join([str(x[1]) for x in self.layerSizes]))
     outFile.write("const unsigned int layerStartW"+varSuffix+"[] = {%s};\n" % ", ".join(map(str, self.layerHeadsW)))
     outFile.write("const unsigned int layerStartT"+varSuffix+"[] = {%s};\n\n" % ", ".join(map(str, self.layerHeadsT)))
 
@@ -704,18 +713,18 @@ class BNNProcElemMem:
         outFile.write("BinaryWeights<%d,%d,%d> weights%s= {\n{\n" % (self.numSIMD, self.numPE, self.weightMemDepth, varSuffix))
     else:
         outFile.write("FixedPointWeights<%d,%s,%d,%d> weights%s= {\n{\n" % (self.numSIMD, wMemType, self.numPE, self.weightMemDepth, varSuffix))
-    outFile.write(",".join(map(lambda pe:"{\n"+(",\n".join(map(self.__makeHLSInit, pe)))+"\n}", self.weightMem)))
+    outFile.write(",".join(["{\n"+(",\n".join(map(self.__makeHLSInit, pe)))+"\n}" for pe in self.weightMem]))
     outFile.write("\n}\n};\n")
     # write the threshold memory init data
     # np.save("tresh"+str(varSuffix)+".npy",self.thresMem)
     if writethreshs:
       if (self.numThresholds==1):
           outFile.write("ThresholdsActivation<%d,%d,%d,%s,%s> threshs%s = {\n{\n" % (self.thresMemDepth, self.numPE, self.numThresholds, tMemType, ActType, varSuffix))
-          outFile.write(",".join(map(lambda pe:"{\n"+(",\n".join(map(str, pe) ))+"\n}", self.thresMem)))
+          outFile.write(",".join(["{\n"+(",\n".join(map(str, pe) ))+"\n}" for pe in self.thresMem]))
           outFile.write("\n}\n};\n")
       else:
           outFile.write("ThresholdsActivation<%d,%d,%d,%s,%s,%d> threshs%s = {\n{\n" % (self.thresMemDepth, self.numPE, self.numThresholds, tMemType, ActType, MinActVal, varSuffix))
-          outFile.write(",".join(map(lambda pe:"{\n"+(",\n".join(map(lambda nthresh:"{\n"+",\n".join(map(str,nthresh))+"\n}", pe) ))+"\n}", self.thresMem)))
+          outFile.write(",".join(["{\n"+(",\n".join(["{\n"+",\n".join(map(str,nthresh))+"\n}" for nthresh in pe] ))+"\n}" for pe in self.thresMem]))
           #outFile.write(",".join(map(lambda pe: map(lambda nthresh:"{\n"+(",\n".join(map(str, nthresh) ))+"\n}", pe), self.thresMem)))
           outFile.write("\n}\n};\n")
     outFile.close()
