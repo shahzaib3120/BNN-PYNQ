@@ -12,8 +12,8 @@ from binarized_modules import  *
 
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
-parser.add_argument('--batch-size', type=int, default=100, metavar='N', help='input batch size for training (default: 256)')
-parser.add_argument('--test-batch-size', type=int, default=100, metavar='N', help='input batch size for testing (default: 1000)')
+parser.add_argument('--batch-size', type=int, default=128, metavar='N', help='input batch size for training (default: 256)')
+parser.add_argument('--test-batch-size', type=int, default=128, metavar='N', help='input batch size for testing (default: 1000)')
 parser.add_argument('--epochs', type=int, default=1000, metavar='N', help='number of epochs to train (default: 10)')
 parser.add_argument('--lr', type=float, default=0.01, metavar='LR', help='learning rate (default: 0.001)')
 parser.add_argument('--momentum', type=float, default=0.5, metavar='M', help='SGD momentum (default: 0.5)')
@@ -56,7 +56,10 @@ def train(epoch):
             data, target = data.cuda(), target.cuda()
 
         target=target.unsqueeze(1)
-        target_onehot = torch.cuda.FloatTensor(target.size(0), 10)
+        if args.cuda:
+            target_onehot = torch.cuda.FloatTensor(target.size(0), 10)
+        else:
+            target_onehot = torch.FloatTensor(target.size(0), 10)
         target_onehot.fill_(-1)
         target_onehot.scatter_(1, target, 1)
         target=target.squeeze()
@@ -82,7 +85,7 @@ def train(epoch):
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader), loss.data[0]))
+                100. * batch_idx / len(train_loader), loss.data))
 
 def test():
     model.eval()
@@ -95,7 +98,10 @@ def test():
         data, target = Variable(data, volatile=True), Variable(target)
 
         target=target.unsqueeze(1)
-        target_onehot = torch.cuda.FloatTensor(target.size(0), 10)
+        if args.cuda:
+            target_onehot = torch.cuda.FloatTensor(target.size(0), 10)
+        else:
+            target_onehot = torch.FloatTensor(target.size(0), 10)
         target_onehot.fill_(-1)
         target_onehot.scatter_(1, target, 1)
         target=target.squeeze()
