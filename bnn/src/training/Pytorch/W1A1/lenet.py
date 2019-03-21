@@ -102,7 +102,7 @@ def test():
     
     if new_acc > prev_acc:
     	#save model
-    	torch.save(model, 'results/lenet/params.pt')
+    	torch.save(model, 'results/lenet_parameters.pt')
     	prev_acc = new_acc
 
 if __name__ == '__main__':

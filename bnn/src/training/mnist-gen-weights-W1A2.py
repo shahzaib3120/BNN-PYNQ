@@ -35,7 +35,7 @@ import finnthesizer as fth
 
 if __name__ == "__main__":
     bnnRoot = "."
-    npzFile = bnnRoot + "/weights/mnist-hardtanh-s0.250000-1.0w-2.0a.npz"
+    npzFile = bnnRoot + "/weights/mnist-w1a2.npz"
     targetDirBin = bnnRoot + "/binparam-lfcW1A2-pynq"
     targetDirHLS = bnnRoot + "/binparam-lfcW1A2-pynq/hw"
 

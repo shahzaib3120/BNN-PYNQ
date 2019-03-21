@@ -126,7 +126,7 @@ def test():
     
     if new_acc > prev_acc:    	
         # save model
-    	torch.save(model, 'results/cnv/params.pt')
+    	torch.save(model, 'results/cifar10-w1a2.pt')
     	prev_acc = new_acc
 
 if __name__ == '__main__':

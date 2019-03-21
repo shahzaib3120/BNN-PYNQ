@@ -112,7 +112,7 @@ def test():
     
     if new_acc > prev_acc:
         # save model
-        torch.save(model, 'results/lfc/params.pt')
+        torch.save(model, 'results/mnist-w1a2.pt')
         prev_acc = new_acc
 
 if __name__ == '__main__':

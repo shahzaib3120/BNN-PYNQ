@@ -1,19 +1,19 @@
-# BNN.pytorch
+# BNN.pytorch for w1a2 training
 
-## For Traning Lenet
+## For Traning lfc
 
 ```bash
-	$ python lenet.py
+	$ python lfc.py
 ```
 To convert .pt to .npz run 
 
 ```bash
-	$ python pt_to_npz.py
+	$ python pt_to_npz_lfc.py
 ```
 Copy the generated .npz
 
 ```bash
-	$ mv res/lenet_parameters.npz ../Theano/weights
+	$ cp results/mnist-w1a2.npz ../../weights
 ```
 
 Binarized Neural Network (BNN) for pytorch

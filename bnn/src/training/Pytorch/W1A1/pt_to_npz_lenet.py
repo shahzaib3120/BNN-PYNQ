@@ -3,7 +3,7 @@ from lenet import LeNet
 import numpy as np
 
 net = LeNet()
-net = torch.load('results/lenet/params.pt', map_location = 'cpu')
+net = torch.load('results/lenet_parameters.pt', map_location = 'cpu')
 net.eval()
 
 # conv layer 
@@ -57,6 +57,4 @@ arr_23 = net.classifier[5].running_var.detach().numpy()
 arr_23 = 1./(np.sqrt(arr_23))
 
 
-np.savez('results/lenet/lenet_parameters.npz',arr_0,arr_1,arr_2,arr_3,arr_4,arr_5,arr_6,arr_7, arr_8,arr_9,arr_10,arr_11,	arr_12,	arr_13,	arr_14,	arr_15,	arr_16,	arr_17, arr_18,	arr_19,	arr_20,	arr_21,	arr_22,	arr_23)
-
-
+np.savez('results/lenet_parameters.npz',arr_0,arr_1,arr_2,arr_3,arr_4,arr_5,arr_6,arr_7, arr_8,arr_9,arr_10,arr_11,	arr_12,	arr_13,	arr_14,	arr_15,	arr_16,	arr_17, arr_18,	arr_19,	arr_20,	arr_21,	arr_22,	arr_23)

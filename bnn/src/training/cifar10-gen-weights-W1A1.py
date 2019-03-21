@@ -35,7 +35,7 @@ from finnthesizer import *
 
 if __name__ == "__main__":
     bnnRoot = "."
-    npzFile = bnnRoot + "/weights/cifar10-np-s0.50-1w-1a.npz"
+    npzFile = bnnRoot + "/weights/cifar10-w1a1.npz"
     targetDirBin = bnnRoot + "/binparam-cnvW1A1-pynq"
     targetDirHLS = bnnRoot + "/binparam-cnvW1A1-pynq/hw"
 

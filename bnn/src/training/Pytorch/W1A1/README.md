@@ -1,19 +1,19 @@
-# BNN.pytorch
+# BNN.pytorch for w1a1 training
 
-## For Traning Lenet
+## For Traning cnv
 
 ```bash
-	$ python lenet.py
+	$ python cnv.py
 ```
 To convert .pt to .npz run 
 
 ```bash
-	$ python pt_to_npz.py
+	$ python pt_to_npz_cnv.py
 ```
 Copy the generated .npz
 
 ```bash
-	$ mv res/lenet_parameters.npz ../Theano/weights
+	$ cp results/cifar10-w1a1.npz ../../weights
 ```
 
 Binarized Neural Network (BNN) for pytorch

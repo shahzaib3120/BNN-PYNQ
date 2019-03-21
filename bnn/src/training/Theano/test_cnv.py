@@ -75,15 +75,15 @@ if __name__ == "__main__":
 
     print("Loading the trained parameters and binarizing the weights...")
     if args.dataset == 'cifar10':
- 	weights = 'weights/cifar10-np-s0.50-1w-1a.npz'
+ 	weights = '../weights/cifar10-w1a1.npz'
     elif args.dataset == 'cifar100':
-	weights = 'weights/cifar100_parameters.npz'
+	weights = '../weights/cifar100_parameters.npz'
     elif args.dataset == 'mnist' and args.model == 'resnet':
-	weights = 'weights/resnet_parameters.npz'
+	weights = '../weights/resnet_parameters.npz'
     elif args.dataset == 'mnist' and args.model == 'lenet':
-	weights = 'weights/lenet_parameters.npz'
+	weights = '../weights/lenet_parameters.npz'
     elif args.dataset == 'mnist' and args.model == 'inception':
-	weights = 'weights/inception_parameters.npz'
+	weights = '../weights/inception_parameters.npz'
 
     with np.load(weights) as f:
         param_values = [f['arr_%d' % i] for i in range(len(f.files))]

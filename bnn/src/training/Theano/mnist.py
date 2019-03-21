@@ -95,7 +95,7 @@ if __name__ == "__main__":
     print("LR_decay = "+str(LR_decay))
     # BTW, LR decay might good for the BN moving average...
     
-    save_path = "mnist_parameters.npz"
+    save_path = "../weights/mnist-w1a1.npz"
     print("save_path = "+str(save_path))
     
     shuffle_parts = 1
