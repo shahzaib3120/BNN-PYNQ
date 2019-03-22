@@ -108,12 +108,12 @@ def test():
         target_var = Variable(target_onehot)
 
         output = model(data)
-        test_loss += criterion(output, target_var).data[0]
+        test_loss += criterion(output, target_var).data
         pred = output.data.max(1, keepdim=True)[1]
         correct += pred.eq(target.data.view_as(pred)).cpu().sum()
 
     test_loss /= len(test_loader.dataset)
-    new_acc = 100. * correct / len(test_loader.dataset)
+    new_acc = float(100 * correct / len(test_loader.dataset))
     print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.4f}%)\n'.format(test_loss, correct, len(test_loader.dataset), new_acc))
     
     if new_acc > prev_acc:
