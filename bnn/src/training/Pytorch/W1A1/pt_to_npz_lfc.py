@@ -4,7 +4,7 @@ import numpy as np
 
 
 net = lfc()
-net = torch.load('results/mnist-w1a2.pt', map_location = 'cpu')
+net = torch.load('results/mnist-w1a1.pt', map_location = 'cpu')
 net.eval()
 
 # linear layer
@@ -58,4 +58,4 @@ arr_23 = net.classifier[10].running_var.detach().numpy()
 arr_23 = 1./(np.sqrt(arr_23))
 
 
-np.savez('results/mnist-w1a2.npz',arr_0,arr_1,arr_2,arr_3,arr_4,arr_5,arr_6,arr_7, arr_8,arr_9,arr_10,arr_11, arr_12, arr_13,	arr_14,	arr_15,	arr_16,	arr_17, arr_18,	arr_19,	arr_20,	arr_21,	arr_22,	arr_23)
+np.savez('results/mnist-w1a1.npz',arr_0,arr_1,arr_2,arr_3,arr_4,arr_5,arr_6,arr_7, arr_8,arr_9,arr_10,arr_11, arr_12, arr_13,	arr_14,	arr_15,	arr_16,	arr_17, arr_18,	arr_19,	arr_20,	arr_21,	arr_22,	arr_23)

@@ -98,14 +98,17 @@ def test():
         data, target = Variable(data, volatile=True), Variable(target)
 
         target=target.unsqueeze(1)
-        target_onehot = torch.cuda.FloatTensor(target.size(0), 10)
+        if args.cuda:
+            target_onehot = torch.cuda.FloatTensor(target.size(0), 10)
+        else:
+            target_onehot = torch.FloatTensor(target.size(0), 10)
         target_onehot.fill_(-1)
         target_onehot.scatter_(1, target, 1)
         target=target.squeeze()
         target_var = Variable(target_onehot)
 
         output = model(data)
-        test_loss += criterion(output, target_var).data[0]
+        test_loss += criterion(output, target_var).data
         pred = output.data.max(1, keepdim=True)[1]
         correct += pred.eq(target.data.view_as(pred)).cpu().sum()
 

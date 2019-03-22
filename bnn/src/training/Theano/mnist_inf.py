@@ -67,8 +67,8 @@ if __name__ == "__main__":
     
     print("Loading the trained parameters and binarizing the weights...")
     
-    with np.load('mnist-w1a1.npz') as f:
-    #with np.load('../weights/mnist-w1a2.npz') as f:
+    # with np.load('../weights/mnist-w1a1.npz') as f:
+    with np.load('../weights/mnist-w1a2.npz') as f:
         param_values = [f['arr_%d' % i] for i in range(len(f.files))]
     lasagne.layers.set_all_param_values(mlp, param_values)
 

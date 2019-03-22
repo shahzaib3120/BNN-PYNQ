@@ -4,7 +4,7 @@ import numpy as np
 
 
 net = cnv()
-net = torch.load('results/cifar10-w1a2.pt', map_location = 'cpu')
+net = torch.load('results/cifar10-w1a1.pt', map_location = 'cpu')
 net.eval()
 
 # conv layer
@@ -122,6 +122,6 @@ arr_52 = net.classifier[7].running_mean.detach().numpy()
 arr_53 = net.classifier[7].running_var.detach().numpy()
 arr_53 = 1./(np.sqrt(arr_53))
 
-np.savez('results/cifar10-w1a2.npz',arr_0,arr_1,arr_2,arr_3,arr_4,arr_5,arr_6,arr_7, arr_8,arr_9,arr_10,arr_11,	arr_12,	arr_13,	arr_14,	arr_15,	arr_16,	arr_17, arr_18,	arr_19,	arr_20,	arr_21,	arr_22,	arr_23,	arr_24,	arr_25,	arr_26,	arr_27,	arr_28,	arr_29,	arr_30,	arr_31,	arr_32,	arr_33,	arr_34,	arr_35,	arr_36,	arr_37,	arr_38,	arr_39,	arr_40,	arr_41,	arr_42,	arr_43,	arr_44,	arr_45,	arr_46,	arr_47,	arr_48,	arr_49,	arr_50,	arr_51,	arr_52,	arr_53)
+np.savez('results/cifar10-w1a1.npz',arr_0,arr_1,arr_2,arr_3,arr_4,arr_5,arr_6,arr_7, arr_8,arr_9,arr_10,arr_11,	arr_12,	arr_13,	arr_14,	arr_15,	arr_16,	arr_17, arr_18,	arr_19,	arr_20,	arr_21,	arr_22,	arr_23,	arr_24,	arr_25,	arr_26,	arr_27,	arr_28,	arr_29,	arr_30,	arr_31,	arr_32,	arr_33,	arr_34,	arr_35,	arr_36,	arr_37,	arr_38,	arr_39,	arr_40,	arr_41,	arr_42,	arr_43,	arr_44,	arr_45,	arr_46,	arr_47,	arr_48,	arr_49,	arr_50,	arr_51,	arr_52,	arr_53)
 
 

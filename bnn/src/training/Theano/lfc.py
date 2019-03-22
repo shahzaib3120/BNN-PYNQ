@@ -96,3 +96,22 @@ def genLfc(input, num_outputs, learning_parameters):
             alpha=alpha)
     return mlp
 
+def genLfcInf(input, num_outputs):
+    mlp = lasagne.layers.InputLayer(shape=(None, 1, 28, 28), input_var=input)
+   
+    mlp = lasagne.layers.DenseLayer(mlp, nonlinearity=lasagne.nonlinearities.identity, num_units=1024)
+    mlp = lasagne.layers.BatchNormLayer(mlp)
+    mlp = lasagne.layers.NonlinearityLayer(mlp,nonlinearity=binary_net.SignTheano)
+
+    mlp = lasagne.layers.DenseLayer(mlp, nonlinearity=lasagne.nonlinearities.identity, num_units=1024)
+    mlp = lasagne.layers.BatchNormLayer(mlp)
+    mlp = lasagne.layers.NonlinearityLayer(mlp,nonlinearity=binary_net.SignTheano)
+
+    mlp = lasagne.layers.DenseLayer(mlp, nonlinearity=lasagne.nonlinearities.identity, num_units=1024)
+    mlp = lasagne.layers.BatchNormLayer(mlp)
+    mlp = lasagne.layers.NonlinearityLayer(mlp,nonlinearity=binary_net.SignTheano)
+
+    mlp = lasagne.layers.DenseLayer(mlp, nonlinearity=lasagne.nonlinearities.identity, num_units=num_outputs)
+    mlp = lasagne.layers.BatchNormLayer(mlp)
+
+    return mlp

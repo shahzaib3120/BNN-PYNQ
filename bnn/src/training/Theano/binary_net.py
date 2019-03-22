@@ -33,22 +33,16 @@
 
 import time
 import sys
-
 from collections import OrderedDict
-
 import numpy as np
-
 # specifying the gpu to use
 # import theano.sandbox.cuda
 # theano.sandbox.cuda.use('gpu1') 
 import theano
 import theano.tensor as T
-
 import lasagne
 import augmentors
-
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
-
 from theano.scalar.basic import UnaryScalarOp, same_out_nocomplex
 from theano.tensor.elemwise import Elemwise
 
@@ -62,8 +56,19 @@ class Round3(UnaryScalarOp):
         (gz,) = gout
         return gz, 
         
+class Floor3(UnaryScalarOp):    
+    def c_code(self, node, name, (x,), (z,), sub):
+        return "%(z)s = floor(%(x)s+.5);" % locals()    # train -.5 and .5 
+    def grad(self, inputs, gout):
+        (gz,) = gout
+        return gz, 
+
+
 round3_scalar = Round3(same_out_nocomplex, name='round3')
 round3 = Elemwise(round3_scalar)
+
+floor3_scalar = Floor3(same_out_nocomplex, name='floor3')
+floor3 = Elemwise(floor3_scalar)
 
 def hard_sigmoid(x):
     return T.clip((x+1.)/2.,0,1)
@@ -73,11 +78,22 @@ def hard_sigmoid(x):
 # And like:
 #   hard_tanh(x) = 2*hard_sigmoid(x)-1 
 # during back propagation
+
 def binary_tanh_unit(x):
-    return 2.*round3(hard_sigmoid(x))-1.
+    # return 2.*round3(hard_sigmoid(x))-1. # (for w1a1)
+    return floor3(T.clip(x,-1,1))          # (for w1a2)
     
 def binary_sigmoid_unit(x):
     return round3(hard_sigmoid(x))
+
+def SignTheano(x):  
+    # return T.cast(2.*T.ge(x,0)-1., theano.config.floatX)   # (for w1a1) 
+    return T.floor(T.clip(x,-1.,1.)+0.5)                     # (for w1a2)
+  
+
+def SignNumpy(x):
+    # return np.float32(2.*np.greater_equal(x,0)-1.)    # (for w1a1)
+    return np.sign(x)   # (for w1a2)
     
 # The weights' binarization function, 
 # taken directly from the BinaryConnect github repository 
@@ -192,6 +208,50 @@ class Conv2DLayer(lasagne.layers.Conv2DLayer):
         self.W = self.Wb
             
         rvalue = super(Conv2DLayer, self).convolve(input, **kwargs)
+        
+        self.W = Wr
+        
+        return rvalue
+
+
+class Deconv2DLayer(lasagne.layers.Deconv2DLayer):
+    
+    def __init__(self, incoming, num_filters, filter_size,
+        binary = True, stochastic = True, H=1.,W_LR_scale="Glorot", **kwargs):
+        
+        self.binary = binary
+        self.stochastic = stochastic
+        
+        self.H = H
+        if H == "Glorot":
+            num_inputs = int(np.prod(filter_size)*incoming.output_shape[1])
+            num_units = int(np.prod(filter_size)*num_filters) # theoretically, I should divide num_units by the pool_shape
+            self.H = np.float32(np.sqrt(1.5 / (num_inputs + num_units)))
+            # print("H = "+str(self.H))
+        
+        self.W_LR_scale = W_LR_scale
+        if W_LR_scale == "Glorot":
+            num_inputs = int(np.prod(filter_size)*incoming.output_shape[1])
+            num_units = int(np.prod(filter_size)*num_filters) # theoretically, I should divide num_units by the pool_shape
+            self.W_LR_scale = np.float32(1./np.sqrt(1.5 / (num_inputs + num_units)))
+            # print("W_LR_scale = "+str(self.W_LR_scale))
+            
+        self._srng = RandomStreams(lasagne.random.get_rng().randint(1, 2147462579))
+            
+        if self.binary:
+            super(Deconv2DLayer, self).__init__(incoming, num_filters, filter_size, W=lasagne.init.Uniform((-self.H,self.H)), **kwargs)   
+            # add the binary tag to weights            
+            self.params[self.W]=set(['binary'])
+        else:
+            super(Deconv2DLayer, self).__init__(incoming, num_filters, filter_size, **kwargs)    
+    
+    def convolve(self, input, deterministic=False, **kwargs):
+        
+        self.Wb = binarization(self.W,self.H,self.binary,deterministic,self.stochastic,self._srng)
+        Wr = self.W
+        self.W = self.Wb
+            
+        rvalue = super(Deconv2DLayer, self).convolve(input, **kwargs)
         
         self.W = Wr
         
