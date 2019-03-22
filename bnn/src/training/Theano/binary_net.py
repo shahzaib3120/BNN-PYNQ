@@ -80,20 +80,20 @@ def hard_sigmoid(x):
 # during back propagation
 
 def binary_tanh_unit(x):
-    # return 2.*round3(hard_sigmoid(x))-1. # (for w1a1)
-    return floor3(T.clip(x,-1,1))          # (for w1a2)
+    return 2.*round3(hard_sigmoid(x))-1. # (for w1a1)
+    # return floor3(T.clip(x,-1,1))          # (for w1a2)
     
 def binary_sigmoid_unit(x):
     return round3(hard_sigmoid(x))
 
 def SignTheano(x):  
-    # return T.cast(2.*T.ge(x,0)-1., theano.config.floatX)   # (for w1a1) 
-    return T.floor(T.clip(x,-1.,1.)+0.5)                     # (for w1a2)
+    return T.cast(2.*T.ge(x,0)-1., theano.config.floatX)   # (for w1a1) 
+    # return T.floor(T.clip(x,-1.,1.)+0.5)                     # (for w1a2)
   
 
 def SignNumpy(x):
-    # return np.float32(2.*np.greater_equal(x,0)-1.)    # (for w1a1)
-    return np.sign(x)   # (for w1a2)
+    return np.float32(2.*np.greater_equal(x,0)-1.)    # (for w1a1)
+    # return np.sign(x)   # (for w1a2)
     
 # The weights' binarization function, 
 # taken directly from the BinaryConnect github repository 

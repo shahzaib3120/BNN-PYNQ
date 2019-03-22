@@ -33,7 +33,6 @@
 
 import lasagne
 import binary_net
-import binary_ops
 
 def genCnv(input, num_outputs, learning_parameters):
     # A function to generate the cnv network topology which matches the overlay for the Pynq board.
@@ -175,32 +174,32 @@ def genCnvInf(input, num_classes):
     cnn = lasagne.layers.Conv2DLayer(cnn, num_filters=16, filter_size=(3, 3), pad='same', flip_filters=False, nonlinearity=lasagne.nonlinearities.identity)
     cnn = lasagne.layers.MaxPool2DLayer(cnn, pool_size=(2, 2)) 
     cnn = lasagne.layers.BatchNormLayer(cnn)
-    cnn = lasagne.layers.NonlinearityLayer(cnn, nonlinearity=binary_ops.SignTheano)
+    cnn = lasagne.layers.NonlinearityLayer(cnn, nonlinearity=binary_net.SignTheano)
 
 
     cnn1x1 = lasagne.layers.Conv2DLayer(cnn, num_filters=32, filter_size=(1, 1), pad='valid', flip_filters=False, nonlinearity=lasagne.nonlinearities.identity)
     cnn1x1 = lasagne.layers.MaxPool2DLayer(cnn1x1, pool_size=(2, 2)) 
     cnn1x1 = lasagne.layers.BatchNormLayer(cnn1x1)
-    cnn1x1 = lasagne.layers.NonlinearityLayer(cnn1x1, nonlinearity=binary_ops.SignTheano)
+    cnn1x1 = lasagne.layers.NonlinearityLayer(cnn1x1, nonlinearity=binary_net.SignTheano)
     out_layers.append(cnn1x1)
 
     cnn3x3 = lasagne.layers.Conv2DLayer(cnn, num_filters=32, filter_size=(3, 3), pad='same', flip_filters=False, nonlinearity=lasagne.nonlinearities.identity)
     cnn3x3 = lasagne.layers.MaxPool2DLayer(cnn3x3, pool_size=(2, 2)) 
     cnn3x3 = lasagne.layers.BatchNormLayer(cnn3x3)
-    cnn3x3 = lasagne.layers.NonlinearityLayer(cnn3x3, nonlinearity=binary_ops.SignTheano)
+    cnn3x3 = lasagne.layers.NonlinearityLayer(cnn3x3, nonlinearity=binary_net.SignTheano)
     out_layers.append(cnn3x3)
 
     cnn5x5 = lasagne.layers.Conv2DLayer(cnn, num_filters=32, filter_size=(5, 5), pad='same', flip_filters=False, nonlinearity=lasagne.nonlinearities.identity)
     cnn5x5 = lasagne.layers.MaxPool2DLayer(cnn5x5, pool_size=(2, 2)) 
     cnn5x5 = lasagne.layers.BatchNormLayer(cnn5x5)
-    cnn5x5 = lasagne.layers.NonlinearityLayer(cnn5x5, nonlinearity=binary_ops.SignTheano)
+    cnn5x5 = lasagne.layers.NonlinearityLayer(cnn5x5, nonlinearity=binary_net.SignTheano)
     out_layers.append(cnn5x5)
 
     cnn = lasagne.layers.concat(out_layers)
 
     cnn = lasagne.layers.DenseLayer(cnn, nonlinearity=lasagne.nonlinearities.identity, num_units=512)
     cnn = lasagne.layers.BatchNormLayer(cnn)
-    cnn = lasagne.layers.NonlinearityLayer(cnn,nonlinearity=binary_ops.SignTheano)
+    cnn = lasagne.layers.NonlinearityLayer(cnn,nonlinearity=binary_net.SignTheano)
 
     cnn = lasagne.layers.DenseLayer(cnn, nonlinearity=lasagne.nonlinearities.identity, num_units=num_classes)
     cnn = lasagne.layers.BatchNormLayer(cnn)

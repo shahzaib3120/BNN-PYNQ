@@ -8,27 +8,27 @@ import argparse
 import theano
 import theano.tensor as T
 import lasagne
-import binary_ops
+import binary_net
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Testing Script')
-    parser.add_argument('--dataset', '-d', default="cifar10", help='dataset to use cifar10/cifar100/mnist')
-    parser.add_argument('--model', '-m', default="cnv", help='model to use resnet/lenet/inception/cnv')
+    parser.add_argument('--dataset', '-d', default="cifar10", help='dataset to use cifar10, cifar100, mnist')
+    parser.add_argument('--model', '-m', default="cnv", help='model to use resnet, lenet, inception, cnv')
     args = parser.parse_args()
 
 
     if args.dataset == 'cifar10':
         print('Loading CIFAR-10 dataset...')
         from pylearn2.datasets.cifar10 import CIFAR10
-        test_set = CIFAR10(which_set="test", start=0, stop = 20)
+        test_set = CIFAR10(which_set="test", start=0, stop = 5000)
         classes = 10
         test_set.X = np.reshape(np.subtract(np.multiply(2./255,test_set.X),1.),(-1,3,32,32))
 
     elif args.dataset == 'cifar100':
         print('Loading CIFAR-100 dataset...')
         from pylearn2.datasets.cifar100 import CIFAR100
-        test_set = CIFAR100(which_set="test", start=0, stop = 20)
+        test_set = CIFAR100(which_set="test", start=0, stop = 5000)
         classes = 100
         test_set.X = np.reshape(np.subtract(np.multiply(2./255,test_set.X),1.),(-1,3,32,32))
 
@@ -94,7 +94,7 @@ if __name__ == "__main__":
     for param in params:
         # print(param.name)
         if param.name == "W":
-            param.set_value(binary_ops.SignNumpy(param.get_value()))
+            param.set_value(binary_net.SignNumpy(param.get_value()))
 
     print('Testing...')
     start_time = time.time()

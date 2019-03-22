@@ -33,7 +33,6 @@
 
 import lasagne
 import binary_net
-import binary_ops
 def genCnv(input, num_outputs, learning_parameters):
     # A function to generate the cnv network topology which matches the overlay for the Pynq board.
     # WARNING: If you change this file, it's likely the resultant weights will not fit on the Pynq overlay.
@@ -134,7 +133,7 @@ def genCnvInf(input, num_outputs):
     # max pool
     cnn = lasagne.layers.MaxPool2DLayer(cnn, pool_size=(2, 2)) 
     cnn = lasagne.layers.BatchNormLayer(cnn)
-    cnn = lasagne.layers.NonlinearityLayer(cnn, nonlinearity=binary_ops.SignTheano)
+    cnn = lasagne.layers.NonlinearityLayer(cnn, nonlinearity=binary_net.SignTheano)
 
     # conv layer 2
     cnn = lasagne.layers.Conv2DLayer(cnn, num_filters=64, filter_size=(5, 5), pad='same', flip_filters=False,nonlinearity=lasagne.nonlinearities.identity)
@@ -142,12 +141,12 @@ def genCnvInf(input, num_outputs):
     # max pool
     cnn = lasagne.layers.MaxPool2DLayer(cnn, pool_size=(2, 2))
     cnn = lasagne.layers.BatchNormLayer(cnn)
-    cnn = lasagne.layers.NonlinearityLayer(cnn, nonlinearity=binary_ops.SignTheano)
+    cnn = lasagne.layers.NonlinearityLayer(cnn, nonlinearity=binary_net.SignTheano)
 
     # fc 1
     cnn = lasagne.layers.DenseLayer(cnn, nonlinearity=lasagne.nonlinearities.identity, num_units=1024)
     cnn = lasagne.layers.BatchNormLayer(cnn)
-    cnn = lasagne.layers.NonlinearityLayer(cnn,nonlinearity=binary_ops.SignTheano)
+    cnn = lasagne.layers.NonlinearityLayer(cnn,nonlinearity=binary_net.SignTheano)
     
     # fc 2
     cnn = lasagne.layers.DenseLayer(cnn, nonlinearity=lasagne.nonlinearities.identity, num_units=10)
