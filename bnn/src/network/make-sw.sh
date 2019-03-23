@@ -104,15 +104,22 @@ OUTPUT_DIR=$XILINX_BNN_ROOT/network/output/sw
 mkdir -p $OUTPUT_DIR
 OUTPUT_FILE="$OUTPUT_DIR/$RUNTIME-$NETWORK-$PLATFORM"
 
+if [ -z "$CC" ]; then
+	compiler="g++"
+	echo "Compiling on ARM"
+else
+	compiler="arm-linux-gnueabihf-g++"
+	echo "Cross compiling for ARM"
+fi
 
 if [[ ("$RUNTIME" == "python_sw") ]]; then
   SRCS_HOST=$BNN_PATH/$NETWORK/sw/main_python.cpp
   SRCS_ALL="$SRCS_HOSTLIB $SRCS_HLSTOP $SRCS_HOST"
-  g++ -g -DOFFLOAD -DRAWHLS -std=c++11 -pthread -O2 -fPIC -shared $SRCS_ALL -I$VIVADOHLS_INCLUDE_PATH -I$TINYCNN_PATH -I$HOSTLIB -I$HLSLIB -I$HLSTOP -o $OUTPUT_FILE.so
+  $compiler -g -DOFFLOAD -DRAWHLS -std=c++11 -pthread -O2 -fPIC -shared $SRCS_ALL -I$VIVADOHLS_INCLUDE_PATH -I$TINYCNN_PATH -I$HOSTLIB -I$HLSLIB -I$HLSTOP -o $OUTPUT_FILE.so
 elif [[ ("$RUNTIME" == "python_hw") ]]; then
   SRCS_HOST=$BNN_PATH/$NETWORK/sw/main_python.cpp
   SRCS_ALL="$DRIVER_PATH/platform-xlnk.cpp $SRCS_HOSTLIB $SRCS_HOST"
-  g++ -g -DOFFLOAD -D$DEF_BOARD -std=c++11 -pthread -O3 -fPIC -shared $SRCS_ALL -I$DRIVER_PATH -I$VIVADOHLS_INCLUDE_PATH -I$TINYCNN_PATH -I$HOSTLIB -I$HLSLIB -I$HLSTOP -o $OUTPUT_FILE.so -lcma
+  $compiler -g -DOFFLOAD -D$DEF_BOARD -std=c++11 -pthread -O3 -fPIC -shared $SRCS_ALL -I$DRIVER_PATH -I$VIVADOHLS_INCLUDE_PATH -I$TINYCNN_PATH -I$HOSTLIB -I$HLSLIB -I$HLSTOP -o $OUTPUT_FILE.so -lcma
 fi
 
 echo "Output at $OUTPUT_FILE"
