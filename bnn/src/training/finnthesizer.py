@@ -95,12 +95,12 @@ def convertFCNetwork(npzFile, targetDirBin, targetDirHLS, simdCounts, peCounts, 
 
     # create HLS weight init files for initializing memory contents directly
     # while generating the bitstream
-    m.createHLSInitFiles(targetDirHLS + "/memdata-" + str(l) + ".h", str(l))
+    # m.createHLSInitFiles(targetDirHLS + "/memdata-" + str(l) + ".h", str(l))
 
     # create binary weight files -- useful for runtime initialization since
     # HLS might freeze / not work for very large header files
     # note that it will still be necessary to declare the PE memories in 
-    #m.createBinFiles(targetDirBin, str(l))
+    m.createBinFiles(targetDirBin, str(l))
     # create parameter files for tiny-cnn
   
   config+="\n#define LL_MH %d" %paddedH

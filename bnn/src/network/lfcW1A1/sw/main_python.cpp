@@ -47,6 +47,7 @@
 #include <chrono>
 #include "foldedmv-offload.h"
 #include <algorithm>
+#include "config.h"
 
 using namespace std;
 using namespace tiny_cnn;
@@ -55,7 +56,7 @@ using namespace tiny_cnn::activation;
 void makeNetwork(network<mse, adagrad> & nn) {
   nn
 #ifdef OFFLOAD
-    << offloaded_layer(28*28, 10, &FoldedMVOffload<ap_int<16>>, 0, 0)
+    << offloaded_layer(IMG_CH * IMG_DIM * IMG_DIM, no_cl, &FoldedMVOffload<ap_int<16>>, 0, 0)
 #endif
   ;
 }
@@ -72,7 +73,7 @@ extern "C" void load_parameters(const char* path) {
   FoldedMVLoadLayerMem(path, 3, L3_PE, L3_WMEM, L3_TMEM, L3_API);
 }
 
-extern "C" int inference(const char* path, int results[64], int number_class, float *usecPerImage) {
+extern "C" int inference(const char* path, int results[LL_MH], int number_class, float *usecPerImage) {
   std::vector<vec_t> test_images;
   std::vector<int> class_result;
   float usecPerImage_int;
@@ -137,16 +138,34 @@ extern "C" int main(int argc, char** argv) {
 
   float execution_time = 0;
   int class_inference = 0;
-  int scores[64];
-
+  int scores[LL_MH];
   load_parameters(argv[1]);
-  class_inference = inference(argv[2], scores, atol(argv[3]), &execution_time);	
-
-  cout << "Detected class " << class_inference << " in " << execution_time << " microseconds" << endl;	
-  deinit();	
-  if (class_inference != atol(argv[4])) {
-    return 1;
-  } else {
+  bool single = true;
+  if(single)
+  {
+    int class_inference = inference(argv[2], scores, no_cl, &execution_time);
+    cout << "Detected class " << class_inference << endl;
+    cout << "in " << execution_time << " microseconds" << endl;
+    deinit();
+    if (class_inference != atol(argv[4]))
+    {
+      return 1;
+    }
+    else
+    {
+      return 0;
+    }
+  }
+  else
+  {
+    // for checking multiple inference
+    int ex_no = 15;
+    int *class_inference = inference_multiple(argv[2], no_cl, &ex_no, &execution_time);
+    for(int i = 0 ; i < ex_no; i++)
+    {
+      cout << "Results = "<< class_inference[i] << endl;
+    }
+    deinit();
     return 0;
   }
 }
