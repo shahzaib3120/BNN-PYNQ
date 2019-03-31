@@ -49,6 +49,8 @@ elif os.environ['BOARD'] == 'Pynq-Z1' or os.environ['BOARD'] == 'Pynq-Z2':
 	PLATFORM="pynqZ1-Z2"
 elif os.environ['BOARD'] == 'ZC706':
 	PLATFORM="zc706"
+elif os.environ['BOARD'] == 'Zybo':
+	PLATFORM="zybo"
 else:
 	raise RuntimeError("Board not supported")
 

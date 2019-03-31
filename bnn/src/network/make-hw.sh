@@ -47,7 +47,7 @@ NETWORKS=$(ls -d *W*A*/ | cut -f1 -d'/' | tr "\n" " ")
 if [ "$#" -ne 3 ]; then
   echo "Usage: $0 <network> <platform> <mode>" >&2
   echo "where <network> = $NETWORKS" >&2
-  echo "<platform> = zc706 pynqZ1-Z2 ultra96" >&2
+  echo "<platform> = zc706 zybo pynqZ1-Z2 ultra96" >&2
   echo "<mode> = regenerate (h)ls only, (b)itstream only, (a)ll" >&2
   exit 1
 fi
@@ -131,9 +131,12 @@ if [[ ("$MODE" == "h") || ("$MODE" == "a")  ]]; then
   elif [[ ("$PLATFORM" == "zc706") ]]; then
     PLATFORM_PART="xc7z045ffg900-2"
     TARGET_CLOCK=5  
+  elif [[ ("$PLATFORM" == "zybo") ]]; then
+    PLATFORM_PART="xc7z010clg400-1"
+	  TARGET_CLOCK=5
   else
-	echo "Error: Platform not supported. Please choose between zc706, pynqZ1-Z2 and ultra96."
-	exit 1
+	  echo "Error: Platform not supported. Please choose between pynqZ1-Z2, ultra96, zc706 and zybo."
+	  exit 1
   fi
   if [ ! -d "$PARAMS" ]; then
 	echo "Error: Please copy binary weight and threshold parameters to $PARAMS"
@@ -161,8 +164,8 @@ TARGET_NAME="$NETWORK-$PLATFORM"
 VIVADO_OUT_DIR="$BNN_PATH/output/vivado/$TARGET_NAME"
 BITSTREAM_PATH="$BNN_PATH/output/bitstream"
 TARGET_BITSTREAM="$BITSTREAM_PATH/$NETWORK-$PLATFORM.bit"
-TARGET_HWH="$BITSTREAM_PATH/$NETWORK-$PLATFORM.hwh"
 TARGET_TCL="$BITSTREAM_PATH/$NETWORK-$PLATFORM.tcl"
+TARGET_HWH="$BITSTREAM_PATH/$NETWORK-$PLATFORM.hwh"
 
 if [[ ("$MODE" == "b") || ("$MODE" == "a")  ]]; then
   mkdir -p "$BNN_PATH/output/vivado"
@@ -180,8 +183,8 @@ if [[ ("$MODE" == "b") || ("$MODE" == "a")  ]]; then
   fi
   vivado -mode batch -notrace -source $VIVADO_SCRIPT -tclargs $HLS_IP_REPO $TARGET_NAME $VIVADO_OUT_DIR $VIVADO_SCRIPT_DIR
   cp -f "$VIVADO_OUT_DIR/$TARGET_NAME.runs/impl_1/procsys_wrapper.bit" $TARGET_BITSTREAM
-  cp -f "$VIVADO_OUT_DIR/$TARGET_NAME.srcs/sources_1/bd/procsys/hw_handoff/procsys.hwh" $TARGET_HWH
   cp -f "$VIVADO_OUT_DIR/procsys.tcl" $TARGET_TCL
+  cp -f "$VIVADO_OUT_DIR/$TARGET_NAME.srcs/sources_1/bd/procsys/hw_handoff/procsys.hwh" $TARGET_HWH
   # extract parts of the post-implementation reports
   cat "$VIVADO_OUT_DIR/$TARGET_NAME.runs/impl_1/procsys_wrapper_timing_summary_routed.rpt" | grep "| Design Timing Summary" -B 3 -A 10 > $REPORT_OUT_DIR/vivado.txt
   cat "$VIVADO_OUT_DIR/$TARGET_NAME.runs/impl_1/procsys_wrapper_utilization_placed.rpt" | grep "| Slice LUTs" -B 3 -A 11 >> $REPORT_OUT_DIR/vivado.txt

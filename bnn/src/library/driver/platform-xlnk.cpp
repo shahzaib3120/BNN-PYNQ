@@ -54,6 +54,8 @@
   #define ADDR_REG_BASE 0x43c00000
 #elif defined ZC706
   #define ADDR_REG_BASE 0x43c00000
+#elif defined ZYBO
+  #define ADDR_REG_BASE 0x43c00000
 #else
   #error Board is not supported. Can not set REG_BASE_ADDR
 #endif

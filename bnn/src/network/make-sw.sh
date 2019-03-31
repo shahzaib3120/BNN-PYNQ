@@ -82,8 +82,11 @@ elif [[ ("$BOARD" == "Ultra96") ]]; then
 elif [[ ("$BOARD" == "ZC706") ]]; then
   DEF_BOARD="ZC706"
   PLATFORM="zc706"
+elif [[ ("$BOARD" == "Zybo") ]]; then
+  DEF_BOARD="ZYBO"
+  PLATFORM="zybo"
 else
-  echo "Error: BOARD variable has to be ZC706, Ultra96, Pynq-Z1 and Pynq-Z2 Board."
+  echo "Error: BOARD variable has to be Ultra96, Pynq-Z1, Pynq-Z2, Zybo or ZC706."
   exit 1
 fi
 
