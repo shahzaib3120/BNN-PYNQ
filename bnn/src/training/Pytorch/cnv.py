@@ -10,7 +10,7 @@ from torchvision import datasets, transforms
 from torch.autograd import Variable
 from binarized_modules import *
 # Training settings
-parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
+parser = argparse.ArgumentParser(description='PyTorch Quantized CNV (Cifar10) Example')
 parser.add_argument('--batch-size', type=int, default=64, metavar='N', help='input batch size for training (default: 256)')
 parser.add_argument('--test-batch-size', type=int, default=128, metavar='N', help='input batch size for testing (default: 1000)')
 parser.add_argument('--epochs', type=int, default=1000, metavar='N', help='number of epochs to train (default: 10)')
@@ -21,61 +21,75 @@ parser.add_argument('--seed', type=int, default=1, metavar='S', help='random see
 parser.add_argument('--gpus', default=0, help='gpus used for training - e.g 0,1,3')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N', help='how many batches to wait before logging training status')
 parser.add_argument('--resume', default=False, action='store_true', help='Perform only evaluation on val dataset.')
-parser.add_argument('--wb', type=int, default=1, metavar='N', help='number of bits for weights (default: 1)')
-parser.add_argument('--ab', type=int, default=1, metavar='N', help='number of bits for activations (default: 1)')
+parser.add_argument('--wb', type=int, default=1, metavar='N', choices=[1, 2], help='number of bits for weights (default: 1)')
+parser.add_argument('--ab', type=int, default=1, metavar='N', choices=[1, 2], help='number of bits for activations (default: 1)')
 parser.add_argument('--eval', default=False, action='store_true', help='perform evaluation of trained model')
 parser.add_argument('--export', default=False, action='store_true', help='perform weights export as npz of trained model')
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 save_path='results/cifar10-w{}a{}.pt'.format(args.wb, args.ab)
-precision(args.wb, args.ab)
 prev_acc = 0
+
+def init_weights(m):
+    if type(m) == BinarizeLinear or type(m) == BinarizeConv2d:
+        torch.nn.init.uniform_(m.weight, -1, 1)
+        m.bias.data.fill_(0.01)
 
 class cnv(nn.Module):
     def __init__(self):
         super(cnv, self).__init__()
 
         self.features = nn.Sequential(
-            BinarizeConv2d(3, 64, kernel_size=3, stride=1, padding=0, bias=True),
+            BinarizeConv2d(args.wb, 3, 64, kernel_size=3, stride=1, padding=0, bias=True),
             nn.BatchNorm2d(64),
             nn.Hardtanh(inplace=True),
+            Quantizer(args.ab),
             
-            BinarizeConv2d(64, 64, kernel_size=3, stride=1, padding=0, bias=True),
+            BinarizeConv2d(args.wb, 64, 64, kernel_size=3, stride=1, padding=0, bias=True),
             nn.BatchNorm2d(64),
             nn.Hardtanh(inplace=True),
+            Quantizer(args.ab),
             nn.MaxPool2d(kernel_size=2, stride=2),
 
-            BinarizeConv2d(64, 128, kernel_size=3, padding=0, bias=True),
+            BinarizeConv2d(args.wb, 64, 128, kernel_size=3, padding=0, bias=True),
             nn.BatchNorm2d(128),
             nn.Hardtanh(inplace=True),
+            Quantizer(args.ab),
             
-            BinarizeConv2d(128, 128, kernel_size=3, padding=0, bias=True),
+            BinarizeConv2d(args.wb, 128, 128, kernel_size=3, padding=0, bias=True),
             nn.BatchNorm2d(128),
             nn.Hardtanh(inplace=True),
+            Quantizer(args.ab),
             nn.MaxPool2d(kernel_size=2, stride=2),
 
-            BinarizeConv2d(128, 256, kernel_size=3, padding=0, bias=True),
+            BinarizeConv2d(args.wb, 128, 256, kernel_size=3, padding=0, bias=True),
             nn.BatchNorm2d(256),
             nn.Hardtanh(inplace=True),
+            Quantizer(args.ab),
             
-            BinarizeConv2d(256, 256, kernel_size=3, padding=0, bias=True),
+            BinarizeConv2d(args.wb, 256, 256, kernel_size=3, padding=0, bias=True),
             nn.BatchNorm2d(256),
-            nn.Hardtanh(inplace=True), 
+            nn.Hardtanh(inplace=True),
+            Quantizer(args.ab) 
             )
 
         self.classifier = nn.Sequential(
-            BinarizeLinear(256*1, 512, bias=True),
+            BinarizeLinear(args.wb, 256*1, 512, bias=True),
             nn.BatchNorm1d(512),
             nn.Hardtanh(inplace=True),
+            Quantizer(args.ab),
 
-            BinarizeLinear(512, 512, bias=True),
+            BinarizeLinear(args.wb, 512, 512, bias=True),
             nn.BatchNorm1d(512),
             nn.Hardtanh(inplace=True),
+            Quantizer(args.ab),
 
-            BinarizeLinear(512, 10, bias=True),
+            BinarizeLinear(args.wb, 512, 10, bias=True),
             nn.BatchNorm1d(10),
             nn.LogSoftmax()
         )
+        self.features.apply(init_weights)
+        self.classifier.apply(init_weights)
 
     def forward(self, x):
         x = self.features(x)
@@ -178,7 +192,6 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
     if args.cuda:
             torch.cuda.manual_seed(args.seed)
-
 
     kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
     train_loader = torch.utils.data.DataLoader(datasets.CIFAR10('data', train=True, download=True,

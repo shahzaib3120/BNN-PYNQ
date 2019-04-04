@@ -7,20 +7,26 @@ from torch.autograd import Function
 import torch.nn._functions as tnnf
 import numpy as np
 
-ab = 1
-wb = 1
+class QuantizeAct(torch.autograd.Function):
 
-def precision(wbit, abit):
-    global wb
-    wb = wbit
-    global ab
-    ab = abit
+    @staticmethod
+    def forward(ctx, input, numbits):
+        ctx.save_for_backward(input)
+        if numbits == 1:
+            return input.sign()
+        elif numbits == 2:
+            return torch.floor(input + 0.5)
 
-def Quantize(tensor, bits):
+    @staticmethod
+    def backward(ctx, grad_output):
+        grad_input = grad_output.clone()
+        return grad_input, None
+
+def QuantizeWeights(tensor, bits):
     if bits == 1:
         return tensor.sign()
     elif bits == 2:
-        return torch.floor(tensor + 0.5)    
+        return torch.floor(tensor + 0.5)
 
 # def Quantize(tensor,quant_mode='det',  params=None, numBits=8):
 #     tensor.clamp_(-2**(numBits-1),2**(numBits-1))
@@ -31,15 +37,25 @@ def Quantize(tensor, bits):
 #         quant_fixed(tensor, params)
 #     return tensor
 
+
+class Quantizer(nn.Module):
+    def __init__(self, numbits):
+        super(Quantizer, self).__init__()
+        self.numbits=numbits
+
+    def forward(self, input):
+        return QuantizeAct.apply(input, self.numbits)
+
 class BinarizeLinear(nn.Linear):
     def __init__(self, *kargs, **kwargs):
+        self.wb = kargs[0]
+        kargs = kargs[1:]
         super(BinarizeLinear, self).__init__(*kargs, **kwargs)
 
     def forward(self, input):
-        input.data=Quantize(input.data, ab)
         if not hasattr(self.weight,'org'):
             self.weight.org=self.weight.data.clone()
-        self.weight.data=Quantize(self.weight.org, wb)
+        self.weight.data=QuantizeWeights(self.weight.org, self.wb)
         out = nn.functional.linear(input, self.weight)
         if not self.bias is None:
             self.bias.org=self.bias.data.clone()
@@ -48,14 +64,14 @@ class BinarizeLinear(nn.Linear):
 
 class BinarizeConv2d(nn.Conv2d):
     def __init__(self, *kargs, **kwargs):
+        self.wb = kargs[0]
+        kargs = kargs[1:]
         super(BinarizeConv2d, self).__init__(*kargs, **kwargs)
     
     def forward(self, input):
-        if input.size(1) != 3:
-            input.data = Quantize(input.data, ab)
         if not hasattr(self.weight,'org'):
             self.weight.org=self.weight.data.clone()
-        self.weight.data=Quantize(self.weight.org, wb)
+        self.weight.data=QuantizeWeights(self.weight.org, self.wb)
         out = nn.functional.conv2d(input, self.weight, None, self.stride,
                                    self.padding, self.dilation, self.groups)
         if not self.bias is None:

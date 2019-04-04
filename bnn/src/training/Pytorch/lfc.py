@@ -10,7 +10,7 @@ from torchvision import datasets, transforms
 from torch.autograd import Variable
 from binarized_modules import  *
 # Training settings
-parser = argparse.ArgumentParser(description='PyTorch LFC Example')
+parser = argparse.ArgumentParser(description='PyTorch Quantized LFC (MNIST) Example')
 parser.add_argument('--batch-size', type=int, default=128, metavar='N', help='input batch size for training (default: 256)')
 parser.add_argument('--test-batch-size', type=int, default=128, metavar='N', help='input batch size for testing (default: 1000)')
 parser.add_argument('--epochs', type=int, default=1000, metavar='N', help='number of epochs to train (default: 10)')
@@ -21,8 +21,8 @@ parser.add_argument('--seed', type=int, default=1, metavar='S', help='random see
 parser.add_argument('--gpus', default=0, help='gpus used for training - e.g 0,1,3')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N', help='how many batches to wait before logging training status')
 parser.add_argument('--resume', default=False, action='store_true', help='Perform only evaluation on val dataset.')
-parser.add_argument('--wb', type=int, default=1, metavar='N', help='number of bits for weights (default: 1)')
-parser.add_argument('--ab', type=int, default=1, metavar='N', help='number of bits for activations (default: 1)')
+parser.add_argument('--wb', type=int, default=1, metavar='N', choices=[1, 2], help='number of bits for weights (default: 1)')
+parser.add_argument('--ab', type=int, default=1, metavar='N', choices=[1, 2],help='number of bits for activations (default: 1)')
 parser.add_argument('--eval', default=False, action='store_true', help='perform evaluation of trained model')
 parser.add_argument('--export', default=False, action='store_true', help='perform weights export as npz of trained model')
 args = parser.parse_args()
@@ -30,29 +30,38 @@ args.cuda = not args.no_cuda and torch.cuda.is_available()
 save_path='results/mnist-w{}a{}.pt'.format(args.wb, args.ab)
 neurons = 1024
 prev_acc = 0
-precision(args.wb, args.ab)
+
+def init_weights(m):
+    if type(m) == BinarizeLinear:
+        torch.nn.init.uniform_(m.weight, -1, 1)
+        m.bias.data.fill_(0.01)
 
 class lfc(nn.Module):
     def __init__(self):
         super(lfc, self).__init__()
 
         self.classifier = nn.Sequential(
-            BinarizeLinear(784, neurons, bias=True),
+            Quantizer(1),
+            BinarizeLinear(args.wb, 784, neurons, bias=True),
             nn.BatchNorm1d(neurons),
             nn.Hardtanh(inplace=True),
+            Quantizer(args.ab),
 
-            BinarizeLinear(neurons, neurons, bias=True),
+            BinarizeLinear(args.wb, neurons, neurons, bias=True),
             nn.BatchNorm1d(neurons),
             nn.Hardtanh(inplace=True),
+            Quantizer(args.ab),
 
-            BinarizeLinear(neurons, neurons, bias=True),
+            BinarizeLinear(args.wb, neurons, neurons, bias=True),
             nn.BatchNorm1d(neurons),
             nn.Hardtanh(inplace=True),
+            Quantizer(args.ab),
 
-            BinarizeLinear(neurons, 10, bias=True),
+            BinarizeLinear(args.wb, neurons, 10, bias=True),
             nn.BatchNorm1d(10),
         )
-        
+        self.classifier.apply(init_weights)
+
     def forward(self, x):
         x = x.view(-1, 784)
         x = self.classifier(x)
@@ -62,7 +71,6 @@ class lfc(nn.Module):
         import numpy as np
         dic = {}
         i = 0
-
         # process linear and BN layers
         for k in range(len(self.classifier)):
             # print(self.classifier[k])
@@ -90,6 +98,8 @@ def train(epoch):
     for batch_idx, (data, target) in enumerate(train_loader):
         if args.cuda:
             data, target = data.cuda(), target.cuda()
+        
+        # one hot encoding for hinge loss
         target=target.unsqueeze(1)
         if args.cuda:
             target_onehot = torch.cuda.FloatTensor(target.size(0), 10)
@@ -100,6 +110,7 @@ def train(epoch):
         target=target.squeeze()
         target_var = Variable(target_onehot)
         data, target = Variable(data), Variable(target)
+        
         optimizer.zero_grad()
         output = model(data)
         loss = criterion(output, target_var)
@@ -125,22 +136,25 @@ def test(save_model=False):
     correct = 0
     global prev_acc
     with torch.no_grad():
-	    for data, target in test_loader:
-	        if args.cuda:
-	            data, target = data.cuda(), target.cuda()
-	        target=target.unsqueeze(1)
-	        if args.cuda:
-	            target_onehot = torch.cuda.FloatTensor(target.size(0), 10)
-	        else:
-	            target_onehot = torch.FloatTensor(target.size(0), 10)
-	        target_onehot.fill_(-1)
-	        target_onehot.scatter_(1, target, 1)
-	        target=target.squeeze()
-	        target_var = Variable(target_onehot)
-	        output = model(data)
-	        test_loss += criterion(output, target_var).data
-	        pred = output.data.max(1, keepdim=True)[1]
-	        correct += pred.eq(target.data.view_as(pred)).cpu().sum()
+        for data, target in test_loader:
+            if args.cuda:
+                data, target = data.cuda(), target.cuda()
+            
+            # one hot encoding for hinge loss
+            target=target.unsqueeze(1)
+            if args.cuda:
+                target_onehot = torch.cuda.FloatTensor(target.size(0), 10)
+            else:
+                target_onehot = torch.FloatTensor(target.size(0), 10)
+            target_onehot.fill_(-1)
+            target_onehot.scatter_(1, target, 1)
+            target=target.squeeze()
+            target_var = Variable(target_onehot)
+            
+            output = model(data)
+            test_loss += criterion(output, target_var).data
+            pred = output.data.max(1, keepdim=True)[1]
+            correct += pred.eq(target.data.view_as(pred)).cpu().sum()
     test_loss /= len(test_loader.dataset)
     new_acc = 100. * correct.float() / len(test_loader.dataset)
     print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)\n'.format(test_loss, correct, len(test_loader.dataset), new_acc)) 

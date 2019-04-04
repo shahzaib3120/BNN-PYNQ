@@ -9,7 +9,7 @@ from torchvision import datasets, transforms
 from torch.autograd import Variable
 from binarized_modules import *
 # Training settings
-parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
+parser = argparse.ArgumentParser(description='PyTorch Quantized LeNet (MNIST) Example')
 parser.add_argument('--batch-size', type=int, default=128, metavar='N', help='input batch size for training (default: 256)')
 parser.add_argument('--test-batch-size', type=int, default=128, metavar='N', help='input batch size for testing (default: 1000)')
 parser.add_argument('--epochs', type=int, default=1000, metavar='N', help='number of epochs to train (default: 10)')
@@ -20,40 +20,50 @@ parser.add_argument('--seed', type=int, default=1, metavar='S', help='random see
 parser.add_argument('--gpus', default=0, help='gpus used for training - e.g 0,1,3')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N', help='how many batches to wait before logging training status')
 parser.add_argument('--resume', default=False, action='store_true', help='Perform only evaluation on val dataset.')
-parser.add_argument('--wb', type=int, default=1, metavar='N', help='number of bits for weights (default: 1)')
-parser.add_argument('--ab', type=int, default=1, metavar='N', help='number of bits for activations (default: 1)')
+parser.add_argument('--wb', type=int, default=1, metavar='N', choices=[1, 2], help='number of bits for weights (default: 1)')
+parser.add_argument('--ab', type=int, default=1, metavar='N', choices=[1, 2], help='number of bits for activations (default: 1)')
 parser.add_argument('--eval', default=False, action='store_true', help='perform evaluation of trained model')
 parser.add_argument('--export', default=False, action='store_true', help='perform weights export as npz of trained model')
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 save_path='results/lenet-w{}a{}.pt'.format(args.wb, args.ab)
-precision(args.wb, args.ab)
 prev_acc = 0
+
+def init_weights(m):
+    if type(m) == BinarizeLinear or type(m) == BinarizeConv2d:
+        torch.nn.init.uniform_(m.weight, -1, 1)
+        m.bias.data.fill_(0.01)
 
 class LeNet(nn.Module):
     def __init__(self):
         super(LeNet, self).__init__()
         self.features = nn.Sequential(
-            BinarizeConv2d(1, 32, kernel_size=3, stride=1, padding=0, bias=True),
+            BinarizeConv2d(args.wb, 1, 32, kernel_size=3, stride=1, padding=0, bias=True),
             nn.BatchNorm2d(32),
             nn.Hardtanh(inplace=True),
+            Quantizer(args.ab),
             nn.MaxPool2d(kernel_size=2, stride=2),
 
-            BinarizeConv2d(32, 64, kernel_size=5, padding=2, bias=True),
+            BinarizeConv2d(args.wb, 32, 64, kernel_size=5, padding=2, bias=True),
             nn.BatchNorm2d(64),
             nn.Hardtanh(inplace=True),
+            Quantizer(args.ab),
         	nn.MaxPool2d(kernel_size=2, stride=2))
 
         self.classifier = nn.Sequential(
-            BinarizeLinear(6*6*64, 1024, bias=True),
+            BinarizeLinear(args.wb, 6*6*64, 1024, bias=True),
             nn.BatchNorm1d(1024),
             nn.Hardtanh(inplace=True),
+            Quantizer(args.ab),
             
             nn.Dropout(0.5),
             
-            BinarizeLinear(1024, 10, bias=True),
+            BinarizeLinear(args.wb, 1024, 10, bias=True),
             nn.BatchNorm1d(10),
             nn.LogSoftmax())
+
+        self.features.apply(init_weights)
+        self.classifier.apply(init_weights)
 
     def forward(self, x):
         x = self.features(x)
