@@ -14,19 +14,23 @@ class QuantizeAct(torch.autograd.Function):
         ctx.save_for_backward(input)
         if numbits == 1:
             return input.sign()
-        elif numbits == 2:
-            return torch.floor(input + 0.5)
+        # elif numbits == 2:
+        #     return torch.floor(input + 0.5)
+        else:
+            return torch.floor(input.add(1).div(2).clamp_(0, 0.999).mul(2**numbits-1)).sub((2**numbits-1)//2)#.div((2**numbits-1)//2)
 
     @staticmethod
     def backward(ctx, grad_output):
         grad_input = grad_output.clone()
         return grad_input, None
 
-def QuantizeWeights(tensor, bits):
-    if bits == 1:
+def QuantizeWeights(tensor, numbits):
+    if numbits == 1:
         return tensor.sign()
-    elif bits == 2:
-        return torch.floor(tensor + 0.5)
+    # elif bits == 2:
+    #     return torch.floor(tensor + 0.5)
+    else:
+        return torch.floor(tensor.add(1).div(2).clamp_(0, 0.999).mul(2**numbits-1)).sub((2**numbits-1)//2).div((2**numbits-1)//2)
 
 # def Quantize(tensor,quant_mode='det',  params=None, numBits=8):
 #     tensor.clamp_(-2**(numBits-1),2**(numBits-1))
