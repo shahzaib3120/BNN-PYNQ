@@ -87,13 +87,28 @@ def binary_sigmoid_unit(x):
     return round3(hard_sigmoid(x))
 
 def SignTheano(x):  
-    return T.cast(2.*T.ge(x,0)-1., theano.config.floatX)   # (for w1a1) 
-    # return T.floor(T.clip(x,-1.,1.)+0.5)                     # (for w1a2)
-  
+    return T.cast(2.*T.ge(x,0)-1., theano.config.floatX)   # (for a1)
+    # return T.floor(T.clip(x,-1.,1.)+0.5)                 # (for a2)
+
+    # numbits=4
+    # x = T.clip((x+1.)/2., 0, 0.999)    # for (ax)
+    # x = T.floor(x*(2**numbits-1))
+    # x = x - ((2**numbits-1)/2)
+    # # x = x / ((2**numbits-1)/2)
+    # return x  
 
 def SignNumpy(x):
-    return np.float32(2.*np.greater_equal(x,0)-1.)    # (for w1a1)
-    # return np.sign(x)   # (for w1a2)
+    #### return np.float32(2.*np.greater_equal(x,0)-1.)    # (for w1)
+    return np.sign(x)   # (for w1)
+    
+    # return np.floor(np.clip(x, -1, 1)+0.5)  # (for w2)
+
+    # numbits=4
+    # x = np.clip((x+1.)/2., 0, 0.999)    # for (wx)
+    # x = np.floor(x*(2**numbits-1))
+    # x = x - ((2**numbits-1)/2)
+    # x = x / ((2**numbits-1)/2)
+    # return x
     
 # The weights' binarization function, 
 # taken directly from the BinaryConnect github repository 

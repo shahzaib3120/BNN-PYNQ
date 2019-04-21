@@ -36,7 +36,7 @@ from finnthesizer import *
 if __name__ == "__main__":
 
     bnnRoot = "."
-    npzFile = bnnRoot + "/weights/resnet_parameters.npz"
+    npzFile = bnnRoot + "/weights/resnet-w1a1.npz"
     targetDirBin = bnnRoot + "/binparam-cnvW1A1-pynq-resnet"
     targetDirHLS = bnnRoot + "/binparam-cnvW1A1-pynq-resnet/hw"
     

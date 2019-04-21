@@ -165,8 +165,14 @@ def quantize(x, integer, fract):
     bits=integer+fract
     if (bits==1):
       return(binarize(x))
-    n = float(2**fract) # GIULIO ADD CLIP
-    return np.floor(x * n + 0.5) / n    
+    elif (bits==2):
+      n = float(2**fract) # GIULIO ADD CLIP
+      return np.floor(x * n + 0.5) / n    
+    else:  
+      x = np.clip((x+1.)/2., 0, 0.999)
+      x = np.floor(x * (2**integer-1))
+      x = x - ((2**integer-1)//2)
+      return x  
 
 # the binarization function, basically the sign encoded as 1 for positive and
 # 0 for negative
@@ -237,9 +243,13 @@ def makeFCBNComplex_QNN(weights, beta, gamma, mean, invstd, WPrecisions_fract, A
         need_flip = 1
         #step = -step
         thres = mean[neuron] + ((step - beta[neuron]) / (gamma[neuron]*invstd[neuron]))
+        # if (WPrecisions_int > 2):
+        #   thres *= (2**WPrecisions_int-1)//2
         thres = np.ceil(-thres)	
     else:
         thres = mean[neuron] + ((step - beta[neuron]) / (gamma[neuron]*invstd[neuron]))
+        # if (WPrecisions_int > 2):
+        #   thres *= (2**WPrecisions_int-1)//2
         thres = np.floor(thres)		
     # Integer-like threshold
 	  # compute a preliminary threshold from the batchnorm parameters
@@ -304,9 +314,13 @@ def makeConvBNComplex(weights, bias, beta, gamma, mean, invstd, interleaveChanne
       if gamma[neuron]*invstd[neuron] < 0:
         need_flip = 1
         thres = mean[neuron] + ((step - beta[neuron]) / (gamma[neuron]*invstd[neuron]))
+        # if (WPrecisions_int > 2):
+        #   thres *= (2**WPrecisions_int-1)//2
         thres = np.ceil(-factor*thres)
       else:
         thres = mean[neuron] + ((step - beta[neuron]) / (gamma[neuron]*invstd[neuron]))
+        # if (WPrecisions_int > 2):
+        #   thres *= (2**WPrecisions_int-1)//2
         thres = np.floor(factor*thres)
       thresholds[neuron] = thres#thres.astype(int)
     # go through each weight of each convolutional kernel
@@ -614,7 +628,8 @@ class BNNProcElemMem:
         #create list if APrecision==1
         if self.APrecision == 1:
             mem[memInd]=list([mem[memInd]])   
-        for numThresh in range(self.APrecision):        
+        for numThresh in range(self.APrecision):
+        # for numThresh in range(len(mem[memInd])):       
            #check wheter there are integer thresholds or floats
            if self.numThresIntBits is None:
               #do saturation

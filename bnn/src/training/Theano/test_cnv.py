@@ -16,26 +16,25 @@ if __name__ == "__main__":
     parser.add_argument('--dataset', '-d', default="cifar10", help='dataset to use cifar10, cifar100, mnist')
     parser.add_argument('--model', '-m', default="cnv", help='model to use resnet, lenet, inception, cnv')
     args = parser.parse_args()
-
-
+    batch_size = 10000
     if args.dataset == 'cifar10':
         print('Loading CIFAR-10 dataset...')
         from pylearn2.datasets.cifar10 import CIFAR10
-        test_set = CIFAR10(which_set="test", start=0, stop = 5000)
+        test_set = CIFAR10(which_set="test", start=0, stop = batch_size)
         classes = 10
         test_set.X = np.reshape(np.subtract(np.multiply(2./255,test_set.X),1.),(-1,3,32,32))
 
     elif args.dataset == 'cifar100':
         print('Loading CIFAR-100 dataset...')
         from pylearn2.datasets.cifar100 import CIFAR100
-        test_set = CIFAR100(which_set="test", start=0, stop = 5000)
+        test_set = CIFAR100(which_set="test", start=0, stop = batch_size)
         classes = 100
         test_set.X = np.reshape(np.subtract(np.multiply(2./255,test_set.X),1.),(-1,3,32,32))
 
     elif args.dataset == 'mnist':
     	print('Loading MNIST dataset...')
     	from pylearn2.datasets.mnist import MNIST
-    	test_set = MNIST(which_set="test", start=0, stop = 5000)
+    	test_set = MNIST(which_set="test", start=0, stop = batch_size)
     	classes = 10
 	test_set.X = 2* test_set.X.reshape(-1, 1, 28, 28) - 1.
     
@@ -43,8 +42,7 @@ if __name__ == "__main__":
     test_set.y = np.hstack(test_set.y)
 
     # one hot
-    test_set.y = np.float32(np.eye(classes)[test_set.y])
-    
+    test_set.y = np.float32(np.eye(classes)[test_set.y])  
     print('Building Network...') 
     
     # Prepare Theano variables for inputs and targets
@@ -54,11 +52,9 @@ if __name__ == "__main__":
     if args.dataset == 'cifar10' or args.dataset == 'cifar100':
     	import cnv
     	cnn = cnv.genCnvInf(input, classes)
-
     elif args.dataset == 'mnist' and args.model == 'resnet':
     	import resnet
     	cnn = resnet.genCnvInf(input, classes)
-
     elif args.dataset == 'mnist' and args.model == 'lenet':
    	import lenet
    	cnn = lenet.genCnvInf(input, classes)
@@ -77,13 +73,13 @@ if __name__ == "__main__":
     if args.dataset == 'cifar10':
  	weights = '../weights/cifar10-w1a1.npz'
     elif args.dataset == 'cifar100':
-	weights = '../weights/cifar100_parameters.npz'
+	weights = '../weights/cifar100-w1a1.npz'
     elif args.dataset == 'mnist' and args.model == 'resnet':
-	weights = '../weights/resnet_parameters.npz'
+	weights = '../weights/resnet-w1a1.npz'
     elif args.dataset == 'mnist' and args.model == 'lenet':
-	weights = '../weights/lenet_parameters.npz'
+	weights = '../weights/lenet-w1a1.npz'
     elif args.dataset == 'mnist' and args.model == 'inception':
-	weights = '../weights/inception_parameters.npz'
+	weights = '../weights/inception-w1a1.npz'
 
     with np.load(weights) as f:
         param_values = [f['arr_%d' % i] for i in range(len(f.files))]

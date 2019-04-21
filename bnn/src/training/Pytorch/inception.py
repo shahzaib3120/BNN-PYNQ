@@ -75,8 +75,8 @@ class Inception(nn.Module):
         	nn.MaxPool2d(kernel_size=2, stride=2))
 
         self.classifier = nn.Sequential(
-            BinarizeLinear(args.wb, 7*7*3*32, 1024, bias=True),
-            nn.BatchNorm1d(1024),
+            BinarizeLinear(args.wb, 7*7*3*32, 512, bias=True),
+            nn.BatchNorm1d(512),
             nn.Hardtanh(inplace=True),
             Quantizer(args.ab),
             

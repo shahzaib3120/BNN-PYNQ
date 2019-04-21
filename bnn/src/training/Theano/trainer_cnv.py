@@ -117,7 +117,7 @@ if __name__ == "__main__":
         valid_set = CIFAR100(which_set="train",start=45000,stop = 50000)
         test_set = CIFAR100(which_set="test")
         classes = 100
-        save_path = "../weights/cifar100_parameters.npz"
+        save_path = "../weights/cifar100-w1a1.npz"
         print("save_path = "+str(save_path))
         train_set.X = np.reshape(np.subtract(np.multiply(2./255.,train_set.X),1.),(-1,3,32,32))
 	valid_set.X = np.reshape(np.subtract(np.multiply(2./255.,valid_set.X),1.),(-1,3,32,32))
@@ -131,13 +131,13 @@ if __name__ == "__main__":
 	test_set = MNIST(which_set= 'test', center = False)
 	classes = 10
         if args.model == 'resnet':
-    	   save_path = "../weights/resnet_parameters.npz"
+    	   save_path = "../weights/resnet-w1a1.npz"
     	   print("save_path = "+str(save_path))
         elif args.model == 'lenet':
-            save_path = "../weights/lenet_parameters.npz"
+            save_path = "../weights/lenet-w1a1.npz"
             print("save_path = "+str(save_path))
         elif args.model == 'inception':
-	    save_path = "../weights/inception_parameters.npz"
+	    save_path = "../weights/inception-w1a1.npz"
             print("save_path = "+str(save_path))
 	train_set.X = 2* train_set.X.reshape(-1, 1, 28, 28) - 1.
 	valid_set.X = 2* valid_set.X.reshape(-1, 1, 28, 28) - 1.

@@ -14,8 +14,8 @@ class QuantizeAct(torch.autograd.Function):
         ctx.save_for_backward(input)
         if numbits == 1:
             return input.sign()
-        # elif numbits == 2:
-        #     return torch.floor(input + 0.5)
+        elif numbits == 2:
+            return torch.floor(input + 0.5)
         else:
             return torch.floor(input.add(1).div(2).clamp_(0, 0.999).mul(2**numbits-1)).sub((2**numbits-1)//2)#.div((2**numbits-1)//2)
 
@@ -27,8 +27,8 @@ class QuantizeAct(torch.autograd.Function):
 def QuantizeWeights(tensor, numbits):
     if numbits == 1:
         return tensor.sign()
-    # elif bits == 2:
-    #     return torch.floor(tensor + 0.5)
+    elif bits == 2:
+        return torch.floor(tensor + 0.5)
     else:
         return torch.floor(tensor.add(1).div(2).clamp_(0, 0.999).mul(2**numbits-1)).sub((2**numbits-1)//2).div((2**numbits-1)//2)
 

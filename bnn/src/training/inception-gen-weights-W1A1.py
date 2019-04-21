@@ -36,7 +36,7 @@ from finnthesizer import *
 if __name__ == "__main__":
 
     bnnRoot = "."
-    npzFile = bnnRoot + "/weights/inception_parameters.npz"
+    npzFile = bnnRoot + "/weights/inception-w1a1.npz"
     targetDirBin = bnnRoot + "/binparam-cnvW1A1-pynq-inception"
     targetDirHLS = bnnRoot + "/binparam-cnvW1A1-pynq-inception/hw"
     
