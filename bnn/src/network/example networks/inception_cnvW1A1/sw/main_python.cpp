@@ -167,16 +167,24 @@ extern "C" int main(int argc, char** argv) {
 			return 0;
 		}
   }
-	else
-	{
-		// for checking multiple inference
-		int ex_no = 15;
-		int *class_inference = inference_multiple(argv[2], no_cl, &ex_no, &execution_time);
-		for(int i = 0 ; i < ex_no; i++)
-		{
-			cout << "Results = "<< class_inference[i] << endl;
-		}
+  else
+  {
+    // for checking multiple inference
+    int ex_no = 15;
+    int res[15] = {7,2,1,0,4,1,4,9,5,9,0,6,9,0,1};
+    int error = 0;
+    int *class_inference = inference_multiple(argv[2], no_cl, &ex_no, &execution_time);
+    for(int i = 0 ; i < ex_no; i++)
+    {
+      cout << "Label = "<< res[i] << "\tPredicted = "<<class_inference[i] << endl;
+      if (res[i] != class_inference[i])
+      	error++;
+    }
+    cout << "Mismatches = " << error << endl;
     deinit();
-		return 0;
-	}
+    if(error >= 3)
+    	return 1;
+    else
+    	return 0;
+  }
 }

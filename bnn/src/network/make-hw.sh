@@ -119,7 +119,7 @@ if [[ ("$MODE" == "h") || ("$MODE" == "a")  ]]; then
 	TEST_RESULT=4
   elif [[ ("$NETWORK" == "lfc"*) ]]; then
 	PARAMS="$XILINX_BNN_ROOT/../params/mnist/$NETWORK"
-	TEST_INPUT="$XILINX_BNN_ROOT/../../tests/Test_image/3.bin"
+	TEST_INPUT="$XILINX_BNN_ROOT/../../tests/Test_image/3.bin" # for multiple inference use mnist_15.bin
 	TEST_RESULT=3
   fi
   if [[ ("$PLATFORM" == "pynqZ1-Z2") ]]; then
