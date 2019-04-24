@@ -21,8 +21,8 @@ parser.add_argument('--seed', type=int, default=1, metavar='S', help='random see
 parser.add_argument('--gpus', default=0, help='gpus used for training - e.g 0,1,3')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N', help='how many batches to wait before logging training status')
 parser.add_argument('--resume', default=False, action='store_true', help='Perform only evaluation on val dataset.')
-parser.add_argument('--wb', type=int, default=1, metavar='N', choices=[1, 2, 4], help='number of bits for weights (default: 1)')
-parser.add_argument('--ab', type=int, default=1, metavar='N', choices=[1, 2, 4], help='number of bits for activations (default: 1)')
+parser.add_argument('--wb', type=int, default=1, metavar='N', choices=[1, 2], help='number of bits for weights (default: 1)')
+parser.add_argument('--ab', type=int, default=1, metavar='N', choices=[1, 2], help='number of bits for activations (default: 1)')
 parser.add_argument('--eval', default=False, action='store_true', help='perform evaluation of trained model')
 parser.add_argument('--export', default=False, action='store_true', help='perform weights export as npz of trained model')
 args = parser.parse_args()
@@ -149,8 +149,6 @@ def train(epoch):
         optimizer.zero_grad()
         output = model(data)
         loss = criterion(output, target)
-        if epoch%40==0:
-            optimizer.param_groups[0]['lr']=optimizer.param_groups[0]['lr']*0.1
         optimizer.zero_grad()
         loss.backward()
         for p in list(model.parameters()):
@@ -228,3 +226,5 @@ if __name__ == '__main__':
         for epoch in range(1, args.epochs + 1):
             train(epoch)
             test(save_model=True)
+            if epoch%40==0:
+                optimizer.param_groups[0]['lr']=optimizer.param_groups[0]['lr']*0.1
