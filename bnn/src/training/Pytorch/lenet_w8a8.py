@@ -1,4 +1,3 @@
-
 from __future__ import print_function
 import argparse
 import sys
@@ -10,8 +9,8 @@ from torchvision import datasets, transforms
 from torch.autograd import Variable
 from binarized_modules import *
 # Training settings
-parser = argparse.ArgumentParser(description='PyTorch Quantized CNV (Cifar10) Example')
-parser.add_argument('--batch-size', type=int, default=64, metavar='N', help='input batch size for training (default: 256)')
+parser = argparse.ArgumentParser(description='PyTorch Quantized LeNet (MNIST) Example')
+parser.add_argument('--batch-size', type=int, default=128, metavar='N', help='input batch size for training (default: 256)')
 parser.add_argument('--test-batch-size', type=int, default=128, metavar='N', help='input batch size for testing (default: 1000)')
 parser.add_argument('--epochs', type=int, default=1000, metavar='N', help='number of epochs to train (default: 10)')
 parser.add_argument('--lr', type=float, default=0.01, metavar='LR', help='learning rate (default: 0.001)')
@@ -21,82 +20,76 @@ parser.add_argument('--seed', type=int, default=1, metavar='S', help='random see
 parser.add_argument('--gpus', default=0, help='gpus used for training - e.g 0,1,3')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N', help='how many batches to wait before logging training status')
 parser.add_argument('--resume', default=False, action='store_true', help='Perform only evaluation on val dataset.')
-parser.add_argument('--wb', type=int, default=1, metavar='N', choices=[1, 2], help='number of bits for weights (default: 1)')
-parser.add_argument('--ab', type=int, default=1, metavar='N', choices=[1, 2], help='number of bits for activations (default: 1)')
+parser.add_argument('--wb', type=int, default=8, metavar='N', choices=[1, 2, 4, 8], help='number of bits for weights (default: 1)')
+parser.add_argument('--ab', type=int, default=8, metavar='N', choices=[1, 2, 4, 8], help='number of bits for activations (default: 1)')
 parser.add_argument('--eval', default=False, action='store_true', help='perform evaluation of trained model')
 parser.add_argument('--export', default=False, action='store_true', help='perform weights export as npz of trained model')
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
-save_path='results/cifar10-w{}a{}.pt'.format(args.wb, args.ab)
+save_path='results/lenet-w{}a{}.pt'.format(args.wb, args.ab)
 prev_acc = 0
+EPS=1e-4
 
 def init_weights(m):
     if type(m) == BinarizeLinear or type(m) == BinarizeConv2d:
         torch.nn.init.uniform_(m.weight, -1, 1)
         m.bias.data.fill_(0.01)
 
-class cnv(nn.Module):
+class LeNet(nn.Module):
     def __init__(self):
-        super(cnv, self).__init__()
-
+        super(LeNet, self).__init__()
         self.features = nn.Sequential(
-            BinarizeConv2d(args.wb, 3, 64, kernel_size=3, stride=1, padding=0, bias=True),
-            nn.BatchNorm2d(64),
-            nn.Hardtanh(inplace=True),
-            Quantizer(args.ab),
-            
-            BinarizeConv2d(args.wb, 64, 64, kernel_size=3, stride=1, padding=0, bias=True),
-            nn.BatchNorm2d(64),
+            BinarizeConv2d(args.wb, 1, 6, kernel_size=3, stride=1, padding=1, bias=True),
+            nn.BatchNorm2d(6, eps=EPS),
             nn.Hardtanh(inplace=True),
             Quantizer(args.ab),
             nn.MaxPool2d(kernel_size=2, stride=2),
 
-            BinarizeConv2d(args.wb, 64, 128, kernel_size=3, padding=0, bias=True),
-            nn.BatchNorm2d(128),
+            BinarizeConv2d(args.wb, 6, 16, kernel_size=3,stride=1, padding=1, bias=True),
+            nn.BatchNorm2d(16,eps=EPS),
             nn.Hardtanh(inplace=True),
             Quantizer(args.ab),
-            
-            BinarizeConv2d(args.wb, 128, 128, kernel_size=3, padding=0, bias=True),
-            nn.BatchNorm2d(128),
-            nn.Hardtanh(inplace=True),
-            Quantizer(args.ab),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-
-            BinarizeConv2d(args.wb, 128, 256, kernel_size=3, padding=0, bias=True),
-            nn.BatchNorm2d(256),
-            nn.Hardtanh(inplace=True),
-            Quantizer(args.ab),
-            
-            BinarizeConv2d(args.wb, 256, 256, kernel_size=3, padding=0, bias=True),
-            nn.BatchNorm2d(256),
-            nn.Hardtanh(inplace=True),
-            Quantizer(args.ab) 
-            )
+        	nn.MaxPool2d(kernel_size=2, stride=2))
 
         self.classifier = nn.Sequential(
-            BinarizeLinear(args.wb, 256*1, 512, bias=True),
-            nn.BatchNorm1d(512),
+            BinarizeLinear(args.wb, 7*7*16, 128, bias=True),
+            nn.BatchNorm1d(128, eps=EPS),
+            nn.Hardtanh(inplace=True),
+            Quantizer(args.ab),
+            
+            nn.Dropout(0.5),
+
+            BinarizeLinear(args.wb, 128, 64, bias=True),
+            nn.BatchNorm1d(64, eps=EPS),
             nn.Hardtanh(inplace=True),
             Quantizer(args.ab),
 
-            BinarizeLinear(args.wb, 512, 512, bias=True),
-            nn.BatchNorm1d(512),
-            nn.Hardtanh(inplace=True),
-            Quantizer(args.ab),
-
-            BinarizeLinear(args.wb, 512, 10, bias=True),
+            nn.Dropout(0.5),
+            
+            BinarizeLinear(args.wb, 64, 10, bias=True),
             nn.BatchNorm1d(10),
-            nn.LogSoftmax()
-        )
+            )
+
         self.features.apply(init_weights)
         self.classifier.apply(init_weights)
+        
 
-    def forward(self, x):
-        x = self.features(x)
-        x = x.view(-1, 256)
-        x = self.classifier(x)
+    def quantize(self, x):
+        x.clamp_(-1, 0.9921875)
+        x = x*2**7
+        x = torch.round(x)
+        x = x/2**7
         return x
 
+    def forward(self, x):
+        x = self.quantize(x)
+        for mod in self.features:
+            x = mod(x)
+        x = x.view(-1, 7*7*16)
+        for mod in self.classifier:
+            x = mod(x)
+        return x
+    
     def export(self):
         import numpy as np
         dic = {}
@@ -116,7 +109,7 @@ class cnv(nn.Module):
                 i = i + 1
                 dic['arr_'+str(i)] = self.features[k].running_mean.detach().numpy()
                 i = i + 1
-                dic['arr_'+str(i)] = 1./np.sqrt(self.features[k].running_var.detach().numpy())
+                dic['arr_'+str(i)] = 1./np.sqrt(self.features[k].running_var.detach().numpy()+EPS)
                 i = i + 1
         
         # process linear and BN layers
@@ -133,10 +126,10 @@ class cnv(nn.Module):
                 i = i + 1
                 dic['arr_'+str(i)] = self.classifier[k].running_mean.detach().numpy()
                 i = i + 1
-                dic['arr_'+str(i)] = 1./np.sqrt(self.classifier[k].running_var.detach().numpy())
+                dic['arr_'+str(i)] = 1./np.sqrt(self.classifier[k].running_var.detach().numpy()+EPS)
                 i = i + 1
         
-        save_file = 'results/cifar10-w{}a{}.npz'.format(args.wb, args.ab)
+        save_file = 'results/lenet-w{}a{}.npz'.format(args.wb, args.ab)
         np.savez(save_file, **dic)
         print("Model exported at: ", save_file)
 
@@ -176,9 +169,10 @@ def test(save_model=False):
             test_loss += criterion(output, target).data
             pred = output.data.max(1, keepdim=True)[1]
             correct += pred.eq(target.data.view_as(pred)).cpu().sum()
+
     test_loss /= len(test_loader.dataset)
     new_acc = 100. * correct.float() / len(test_loader.dataset)
-    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)\n'.format(test_loss, correct, len(test_loader.dataset), new_acc))    
+    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)\n'.format(test_loss, correct, len(test_loader.dataset), new_acc))
     if new_acc > prev_acc:
         # save model
         if save_model:
@@ -189,25 +183,24 @@ def test(save_model=False):
 if __name__ == '__main__':
     torch.manual_seed(args.seed)
     if args.cuda:
-            torch.cuda.manual_seed(args.seed)
-
+    		torch.cuda.manual_seed(args.seed)
     kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
-    train_loader = torch.utils.data.DataLoader(datasets.CIFAR10('data', train=True, download=True,
+    train_loader = torch.utils.data.DataLoader(datasets.MNIST('./data/MNIST', train=True, download=True,
                    transform=transforms.Compose([
                        transforms.ToTensor(),
-                       transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+                       transforms.Normalize((0.5,), (0.5,))
                    ])),
-        batch_size=args.batch_size, shuffle=True, **kwargs)
-    test_loader = torch.utils.data.DataLoader(datasets.CIFAR10('data', train=False, transform=transforms.Compose([
+    	batch_size=args.batch_size, shuffle=True, **kwargs)
+    test_loader = torch.utils.data.DataLoader(datasets.MNIST('./data/MNIST', train=False, transform=transforms.Compose([
                        transforms.ToTensor(),
-                       transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+                       transforms.Normalize((0.5,), (0.5,))
                    ])),
-        batch_size=args.test_batch_size, shuffle=False, **kwargs)
+    	batch_size=args.test_batch_size, shuffle=False, **kwargs)
 
-    model = cnv()
+    model = LeNet()
     if args.cuda:
-        torch.cuda.set_device(0)
-        model.cuda()
+    		torch.cuda.set_device(0)
+    		model.cuda()
     criterion = nn.CrossEntropyLoss()
     # test model
     if args.eval:

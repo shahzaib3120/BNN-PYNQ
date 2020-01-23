@@ -6,6 +6,7 @@
 4. Added Lenet Example
 5. Added Inception Block (example on MNIST included)
 6. Added Simple Resnet Block (exmaple on MNIST included)
+7. Added Lenet example (W8A8) in Q2.6 format demonstrating the use of fixed point weights, inputs and activations
 7. W1A1, W1A2 Training and extracting weights in Pytorch 
 8. Added Theano inference script (used to test exported .npz)
 9. Added support for ZC706 and Zybo board (PYNQ linux image for ZC706 and Zybo needed)

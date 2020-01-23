@@ -4,7 +4,6 @@ import torch.nn as nn
 import math
 from torch.autograd import Variable
 from torch.autograd import Function
-import torch.nn._functions as tnnf
 import numpy as np
 
 class QuantizeAct(torch.autograd.Function):
@@ -16,6 +15,14 @@ class QuantizeAct(torch.autograd.Function):
             return input.sign()
         elif numbits == 2:
             return torch.floor(input + 0.5)
+        elif numbits == 8:
+            # not sure if clamping is needed here as tensor already passed through HardTanH (?)
+            # min and max values calculated using 2.6 format. i.e. minval = -(2**intbits-1)
+            # max val = -(minval) - 2**-fracbits
+            # so 8 bit config only uses this format.
+            cliped = torch.clamp(input, -2, 1.984375)
+            cliped = torch.round(cliped * 2.**6)/2.**6
+            return cliped
         else:
             return torch.floor(input.add(1).div(2).clamp_(0, 0.999).mul(2**numbits-1)).sub((2**numbits-1)//2)#.div((2**numbits-1)//2)
 
@@ -27,20 +34,17 @@ class QuantizeAct(torch.autograd.Function):
 def QuantizeWeights(tensor, numbits):
     if numbits == 1:
         return tensor.sign()
-    elif bits == 2:
+    elif numbits == 2:
         return torch.floor(tensor + 0.5)
+    elif numbits == 8:
+        # maybe clamping is needed at the initialization time (?)
+        # During training weights are already being clipped between -1, 1
+        cliped = torch.clamp(tensor, -2, 1.984375)
+        cliped = torch.round(cliped * 2.**6)/2.**6
+        return cliped
     else:
         return torch.floor(tensor.add(1).div(2).clamp_(0, 0.999).mul(2**numbits-1)).sub((2**numbits-1)//2).div((2**numbits-1)//2)
-
-# def Quantize(tensor,quant_mode='det',  params=None, numBits=8):
-#     tensor.clamp_(-2**(numBits-1),2**(numBits-1))
-#     if quant_mode=='det':
-#         tensor=tensor.mul(2**(numBits-1)).round().div(2**(numBits-1))
-#     else:
-#         tensor=tensor.mul(2**(numBits-1)).round().add(torch.rand(tensor.size()).add(-0.5)).div(2**(numBits-1))
-#         quant_fixed(tensor, params)
-#     return tensor
-
+        
 
 class Quantizer(nn.Module):
     def __init__(self, numbits):

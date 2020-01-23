@@ -74,6 +74,16 @@ public:
   TO activate(unsigned const  nf, unsigned const  pe, TA const &accu) const;
 };
 
+
+template<typename T, unsigned factor>
+class PassThroughActivation_shift : public Activation<T, T> {
+public:
+  T activate(unsigned const  nf, unsigned const  pe, T const &accu) const {
+#pragma HLS inline
+    return  accu*factor;
+  }
+};
+
 /**
  * A no-op activation that simply outputs the computed accumulator
  * output as the final result.

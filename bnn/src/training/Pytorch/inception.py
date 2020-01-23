@@ -251,7 +251,7 @@ if __name__ == '__main__':
                        transforms.ToTensor(),
                        transforms.Normalize((0.5,), (0.5,))
                    ])),
-    	batch_size=args.test_batch_size, shuffle=True, **kwargs)
+    	batch_size=args.test_batch_size, shuffle=False, **kwargs)
 
     model = Inception()
     if args.cuda:
