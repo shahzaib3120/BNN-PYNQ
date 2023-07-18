@@ -1,4 +1,4 @@
-.vscode
+.vscode/
 # Default ignored files
 /shelf/
 /workspace.xml
@@ -7,6 +7,8 @@
 # Datasource local storage ignored files
 /dataSources/
 /dataSources.local.xml
+
+.git/
 
 bnn/src/training/*-pynq/
 bnn/src/training/Pytorch/results/*
