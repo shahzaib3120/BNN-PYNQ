@@ -10,6 +10,4 @@
 
 **/__pycache__/
 
-bnn/src/training/*-pynq/
-bnn/src/training/Pytorch/results/*
-bnn/src/training/Pytorch/data/*
+
