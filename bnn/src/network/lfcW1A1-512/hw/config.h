@@ -63,4 +63,9 @@
 #define L2_WPF 0
 #define L2_APF 0
 
+#define LL_MH 64
+#define IMG_DIM 28
+#define IMG_CH 1
+#define no_cl 10
+
 #endif //__LAYER_CONFIG_H_

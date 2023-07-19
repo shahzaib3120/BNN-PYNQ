@@ -128,7 +128,7 @@ void DoCompute(ap_uint<64> *in, ap_uint<64> *out, const unsigned int numReps)
   Mem2Stream_Batch<64, inBytesPadded>(in, memInStrm, numReps);
   StreamingFCLayer_Batch<L0_MW, L0_MH, L0_SIMD, L0_PE, Recast<XnorMul>>(memInStrm, inter0, weights0, threshs0, numReps, ap_resource_lut());
   StreamingFCLayer_Batch<L1_MW, L1_MH, L1_SIMD, L1_PE, Recast<XnorMul>>(inter0, inter1, weights1, threshs1, numReps, ap_resource_lut());
-  StreamingFCLayer_Batch<L2_MW, L2_MH, L2_SIMD, L2_PE, Recast<XnorMul>>(inter1, inter2, weights2, threshs2, numReps, ap_resource_lut());
+  StreamingFCLayer_Batch<L2_MW, L2_MH, L2_SIMD, L2_PE, Recast<XnorMul>>(inter1, memOutStrm, weights2, threshs2, numReps, ap_resource_lut());
   Stream2Mem_Batch<64, outBytesPadded>(memOutStrm, out, numReps);
 }
 
