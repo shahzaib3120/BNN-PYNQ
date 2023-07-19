@@ -8,7 +8,8 @@
 /dataSources/
 /dataSources.local.xml
 
+**/__pycache__/
+
 bnn/src/training/*-pynq/
 bnn/src/training/Pytorch/results/*
 bnn/src/training/Pytorch/data/*
-bnn/src/training/Pytorch/__pycache__/*
