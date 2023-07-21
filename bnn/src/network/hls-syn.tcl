@@ -71,6 +71,8 @@ set_top $config_toplevelfxn
 open_solution sol1
 set_part $config_proj_part
 
+set_param general.maxThreads $(nproc)
+
 # use 64-bit AXI MM addresses
 config_interface -m_axi_addr64
 
