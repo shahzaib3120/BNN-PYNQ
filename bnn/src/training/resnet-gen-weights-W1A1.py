@@ -45,9 +45,9 @@ if __name__ == "__main__":
     fc_layers = 2
 
     #topology of convolutional layers (only for config.h defines)
-    ifm       = [28, 14,  14]
-    ofm       = [28, 14,  14]   
-    ifm_ch    = [ 1, 64,  64]
+    ifm       = [32, 16,  16]
+    ofm       = [32, 16,  16]   
+    ifm_ch    = [ 3, 64,  64]
     ofm_ch    = [64, 64, 64]   
     filterDim = [ 3,  3,   3]
 

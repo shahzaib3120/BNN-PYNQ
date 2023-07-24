@@ -80,17 +80,17 @@ extern "C" void load_parameters(const char *path)
 
 extern "C" int inference(const char *path, int results[LL_MH], int number_class, float *usecPerImage)
 {
-  // std::vector<label_t> test_labels;
+  std::vector<label_t> test_labels;
   std::vector<vec_t> test_images;
   std::vector<int> class_result;
   float usecPerImage_int;
 
-  FoldedMVInit("cnvW1A1");
+  FoldedMVInit("resnet_cnvW1A1");
   network<mse, adagrad> nn;
   makeNetwork(nn);
-  parse_mnist_images(path, &test_images, -1.0, 1.0, 0, 0);
-  // class_result = testPrebuiltCIFAR10_from_image<8, 16, ap_int<16>>(test_images, number_class, usecPerImage_int);
-  class_result = testPrebinarized_nolabel(test_images, number_class, usecPerImage_int);
+  parse_cifar10(path, &test_images, &test_labels, -1.0, 1.0, 0, 0);
+  class_result = testPrebuiltCIFAR10_from_image<8, 16, ap_int<16>>(test_images, number_class, usecPerImage_int);
+
   if (results)
   {
     std::copy(class_result.begin(), class_result.end(), results);
@@ -105,18 +105,18 @@ extern "C" int inference(const char *path, int results[LL_MH], int number_class,
 extern "C" int *inference_multiple(const char *path, int number_class, int *image_number, float *usecPerImage, int enable_detail = 0)
 {
   std::vector<int> detailed_results;
-  // std::vector<label_t> test_labels;
+  std::vector<label_t> test_labels;
   std::vector<vec_t> test_images;
   std::vector<int> all_result;
   float usecPerImage_int;
   int *result;
 
-  FoldedMVInit("cnvW1A1");
+  FoldedMVInit("resnet_cnvW1A1");
   network<mse, adagrad> nn;
   makeNetwork(nn);
-  parse_mnist_images(path, &test_images, -1.0, 1.0, 0, 0);
-  // all_result = testPrebuiltCIFAR10_multiple_images<8, 16, ap_int<16>>(test_images, number_class, detailed_results, usecPerImage_int);
-  all_result = testPrebinarized_nolabel_multiple_images(test_images, number_class, usecPerImage_int);
+  parse_cifar10(path, &test_images, &test_labels, -1.0, 1.0, 0, 0);
+  all_result = testPrebuiltCIFAR10_multiple_images<8, 16, ap_int<16>>(test_images, number_class, detailed_results, usecPerImage_int);
+
   if (image_number)
   {
     *image_number = all_result.size();
@@ -177,26 +177,5 @@ extern "C" int main(int argc, char **argv)
     {
       return 0;
     }
-  }
-  else
-  {
-    // for checking multiple inference
-    int ex_no = 15;
-    int res[15] = {7, 2, 1, 0, 4, 1, 4, 9, 5, 9, 0, 6, 9, 0, 1};
-    int error = 0;
-    int *class_inference = inference_multiple(argv[2], no_cl, &ex_no, &execution_time);
-    for (int i = 0; i < ex_no; i++)
-    {
-      cout << "Label = " << res[i] << "\tPredicted = " << class_inference[i] << endl;
-      if (res[i] != class_inference[i])
-        error++;
-    }
-    cout << "Mismatches = " << error << endl;
-    cout << "Accuracy = " << (float)(ex_no - error) * 100 / (float)ex_no << endl;
-    deinit();
-    if (error >= 3)
-      return 1;
-    else
-      return 0;
   }
 }
